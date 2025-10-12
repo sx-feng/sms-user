@@ -1,20 +1,15 @@
 <template>
-<LoginPage/>
-<DashBoard/>
+ <router-view />
 </template>
 
 <script>
-import DashBoard from './pages/DashBoard.vue';
-import LoginPage from './pages/LoginPage.vue';
+
 
 
 
 export default {
   name: 'App',
-  components: {
- LoginPage,
- DashBoard
-  }
+
 }
 </script>
 

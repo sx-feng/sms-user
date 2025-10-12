@@ -44,7 +44,7 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/store/userstore'
-import {request} from '@/utils/request'
+import { getUserInfo } from '@/api/api.js'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -65,14 +65,12 @@ const handleLogin = () => {
   loginForm.value.validate(async (valid) => {
     if (!valid) return
     loading.value = true
-
     try {
-      const res = await request.post('/api/user/login', {
-        userId: form.value.userId,
-        password: form.value.password
-      })
-
-      if (res.ok && res.code === 200) {
+      const res = await getUserInfo (
+        form.value.userId,
+        form.value.password
+      )
+      if ( res.data.status === 0) {
         ElMessage.success('登录成功')
         userStore.setUserInfo(res.data)
         router.push('/dashboard')
