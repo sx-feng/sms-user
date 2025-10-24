@@ -1,11 +1,9 @@
-﻿
-
-<template>
+﻿<template>
   <div class="login-page">
     <div class="login-card">
       <img src="@/assets/logo.png" alt="logo" class="logo" />
-
       <h2 class="title">手机号验证码平台登录</h2>
+
       <el-form :model="form" :rules="rules" ref="loginForm" label-position="top">
         <el-form-item label="用户ID" prop="userName">
           <el-input v-model="form.userName" placeholder="请输入用户ID" clearable />
@@ -15,7 +13,7 @@
           <el-input
             v-model="form.password"
             placeholder="请输入密码"
-            show-password    
+            show-password
             clearable
           />
         </el-form-item>
@@ -75,18 +73,21 @@ const handleLogin = () => {
       if (res.data.status === 0) {
         ElMessage.success('登录成功')
 
-        // 直接使用用户输入的用户名，而不是后端返回的
-        const userName = form.value.userName // 使用前端输入的用户名
+        // 使用前端输入的用户名，而不是后端返回的
+        const userName = form.value.userName
         const password = form.value.password
 
-        // 设置 userStore 和 localStorage
-        userStore.setUserInfo(res.data, userName, password) // 将 userName 和 password 存入 store
-        localStorage.setItem('u', userName) // 存用户名
-        localStorage.setItem('p', password) // 存密码
+        // 将 token 存储到 localStorage，避免存储明文密码
+        const token = res.data.token  // 假设后端返回了一个 token
+        localStorage.setItem('token', token)
 
+        // 存储用户名并保存到 store（避免存储密码）
+        userStore.setUserInfo(res.data, userName)
+        localStorage.setItem('u', userName)
+         localStorage.setItem('p', password)
+        console.log('pass',password)
         console.log('Username:', userName)
-        console.log('Password:', password)
-        console.log('u:', userStore.userName, 'p:', userStore.password, 'token:', userStore.token)
+        console.log('Token:', token)
 
         // 跳转到仪表盘
         router.push('/dashboard')
@@ -101,7 +102,6 @@ const handleLogin = () => {
     }
   })
 }
-
 </script>
 
 <style scoped lang="scss">

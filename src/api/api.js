@@ -1,81 +1,53 @@
-/* ====== 用户 + 代理层接口（支持表单/Store 两种来源）====== */
-import { request } from '@/utils/request'
-import { useUserStore } from '@/store/userstore'
-import dayjs from 'dayjs'
+import { authRequest as auth } from "./auth";
 
-function withAuth(biz = {}) {
-  const store = useUserStore()
-  return {
-    userName: store.userName || localStorage.getItem('u') || '',
-    password: store.password || localStorage.getItem('p') || '',
-    ...biz,
-  }
-}
+/* ====== 用户层接口（agent 角度调用） ====== */
 
-// 从参数或 Store 组装账号信息
-function authParams(userName, password, extra = {}) {
-  if (typeof userName === 'string') {
-    return { userName, password: password ?? '', ...extra }
-  }
-  return withAuth(extra)
-}
-
-/* ---------- 用户层 ---------- */
+// 登录并获取详细信息（携带用户名/密码）
 export const getUserInfo = (userName, password) =>
-  request(0, '/api/user/info', authParams(userName, password), true)
+  auth(0, '/api/user/info', { userName, password }, true)
 
-export const getBalance = (userName, password) =>
-  request(0, '/api/user/getBalance', authParams(userName, password), true)
-export const getUserBalance = getBalance
+// 查询账户余额
+export const getUserBalance = () =>
+  auth(0, '/api/user/getBalance', {}, true)
 
-export const getNumber = (a, b, c, d) => {
-  // 形态1：getNumber(userName, password, projectId, lineId)
-  if (typeof a === 'string') {
-    const userName = a
-    const password = b
-    const projectId = c
-    const lineId = d
-    return request(0, '/api/user/getNumber', authParams(userName, password, { projectId, lineId }), true)
-  }
-  // 形态2：getNumber(projectId, lineId)
-  const projectId = a
-  const lineId = b
-  return request(0, '/api/user/getNumber', withAuth({ projectId, lineId }), true)
+// 获取号码（取号）
+export const getNumber = (projectId, lineId) =>
+  auth(0, '/api/user/getNumber', { projectId, lineId }, true)
+
+// 获取验证码（取码）
+export const getCode = (phoneNumber) => {
+  return auth(0, '/api/user/getCode', { phoneNumber }, true);
 }
 
-export const getCode = (userNameOrPhone, passwordMaybe, phoneMaybe) => {
-  // 形态1：getCode(userName, password, phoneNumber)
-  if (typeof userNameOrPhone === 'string' && typeof passwordMaybe === 'string' && typeof phoneMaybe === 'string') {
-    return request(0, '/api/user/getCode', authParams(userNameOrPhone, passwordMaybe, { phoneNumber: phoneMaybe }), true)
-  }
-  // 形态2：getCode(phoneNumber)
-  const phoneNumber = userNameOrPhone
-  return request(0, '/api/user/getCode', withAuth({ phoneNumber }), true)
-}
-
+// 查询号码记录（分页）
 export const listNumbers = (status, startTime, endTime, page = 1, size = 10) =>
-  request(0, '/api/user/listNumbers', withAuth({
-    status,
-    startTime: startTime ? dayjs(startTime).format('YYYY-MM-DD HH:mm:ss') : '',
-    endTime: endTime ? dayjs(endTime).format('YYYY-MM-DD HH:mm:ss') : '',
-    page,
-    size,
-  }), true)
+  auth(0, '/api/user/listNumbers', { status, startTime, endTime, page, size }, true)
 
-export const updatePassword = (oldPassword, newPassword) =>
-  request(1, '/api/user/update/passward', withAuth({ oldPassword, newPassword }), true)
+// 修改密码（接口路径按现有保持）
+export const updatePassword = ({ oldPassword, newPassword }) => {
+  return auth(1, '/api/user/update/passward', { oldPassword, newPassword }, true);
+}
 
-export const getNotice = () => request(0, '/api/user/notice', {}, true)
+// 获取公告
+export const getNotice = () =>
+  auth(0, '/api/user/notice', {}, true)
 
+// 获取用户项目列表
 export const listUserProjects = () =>
-  request(0, '/api/user/by-user/listProjects', withAuth(), true)
+  auth(0, '/api/user/by-user/listProjects', {}, true)
 
+// 获取项目线路
 export const listProjectLines = (projectId) =>
-  request(0, '/api/user/listProjectLines', withAuth({ projectId }), true)
+  auth(0, '/api/user/listProjectLines', { projectId }, true)
 
-/* ---------- 代理层 ---------- */
+
+/* ====== 代理层接口（agent 角度调用） ====== */
+
+// 下级账单流水（GET，Query 参数）
 export const viewAgentUserLedger = (params) =>
-  request(0, '/api/agent/subordinate-ledgers', params, true)
+  auth(0, '/api/agent/subordinate-ledgers', params, true)
 
+// 获取代理仪表盘数据
 export const getAgentDashboard = () =>
-  request(0, '/api/agent/dashboard-stats', {}, true)
+  auth(0, '/api/agent/dashboard-stats', {}, true)
+

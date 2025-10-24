@@ -92,7 +92,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/userstore'
-import { getBalance, getNumber } from '@/api/api'
+import { getUserBalance, getNumber } from '@/api/api'
 
 const takeCount = ref(1)
 const filterEnabled = ref(false)
@@ -146,6 +146,7 @@ const handleTakeNumber = async () => {
   }
   try {
     loading.value = true
+    console.log(u,p)
     const res = await getNumber(u, p, projectId.value, selectedLine.value)
     if (res?.ok || res?.code === 200) {
       ElMessage.success('取号请求成功')
@@ -166,7 +167,7 @@ const handleCheckUser = async () => {
     ElMessage.error('未登录，无法查询余额')
     return
   }
-  const res = await getBalance(u, p)
+  const res = await getUserBalance(u, p)
   if (res?.ok || res?.code === 200) {
     const balance = res?.data?.balance ?? res?.data ?? '-'
     ElMessage.success(`当前余额：${balance}`)

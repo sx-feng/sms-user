@@ -6,7 +6,7 @@ import LoginPage from '@/pages/LoginPage.vue'
 
 const routes = [
   {
-    path: '/login',
+    path: '/',
     name: 'login',
     component: LoginPage,
     meta: { title: '用户登录', requiresAuth: false }
