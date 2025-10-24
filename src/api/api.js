@@ -3,7 +3,7 @@ import { request } from "@/utils/request";
 
 // 登录并获取详细信息
 export const getUserInfo = (userName, password) =>
-  request(0, '/api/user/info', { userName, password },true)
+  request(0, '/api/user/info', { userName, password }, true)
 
 // 查询账户余额
 export const getUserBalance = (userName, password) =>
@@ -14,6 +14,7 @@ export const getNumber = (userName, password, projectId, lineId) =>
 // 获取验证码（取码）
 export const getCode = (userName, password, phoneNumber) =>
   request(0, '/api/user/getCode', { userName, password, phoneNumber }, true)
+
 // 查询号码记录（分页）
 export const listNumbers = (userName, password, status, startTime, endTime, page = 1, size = 10) =>
   request(0, '/api/user/listNumbers', { userName, password, status, startTime, endTime, page, size }, true)
