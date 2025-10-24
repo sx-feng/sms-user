@@ -1,5 +1,3 @@
-
-
 <template>
   <div class="login-page">
     <div class="login-card">
@@ -15,7 +13,7 @@
           <el-input
             v-model="form.password"
             placeholder="请输入密码"
-            show-password    
+            show-password
             clearable
           />
         </el-form-item>
@@ -33,11 +31,11 @@
       </el-form>
 
       <div class="footer">
-        <span>© 2024 手机号与验证码获取平台. 保留所有权利.</span>
+        <span>© 2024 手机号与验证码获取平台 保留所有权利</span>
       </div>
     </div>
   </div>
-</template>
+  </template>
 
 <script setup>
 import { ref } from 'vue'
@@ -62,20 +60,21 @@ const rules = {
 }
 
 const handleLogin = () => {
-  loginForm.value.validate(async (valid) => {
+  loginForm.value?.validate(async (valid) => {
     if (!valid) return
     loading.value = true
     try {
-      const res = await getUserInfo (
+      const res = await getUserInfo(
         form.value.userId,
         form.value.password
       )
-      if ( res.data.status === 0) {
+      const success =  res?.data?.status === 0
+      if (success) {
         ElMessage.success('登录成功')
-        userStore.setUserInfo(res.data)
-        router.push('/dashboard')
+        userStore.setUserInfo(res.data || {})
+        router.push({ name: 'dashboard' })
       } else {
-        ElMessage.error(res.message || '登录失败')
+        ElMessage.error(res?.message || '登录失败')
       }
     } catch (e) {
       ElMessage.error('请求异常，请检查网络')
@@ -138,3 +137,4 @@ const handleLogin = () => {
   }
 }
 </style>
+

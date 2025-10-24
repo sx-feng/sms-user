@@ -1,16 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/store/userstore'
 
-// 页面组件
-
 import DashBoard from '@/pages/DashBoard.vue'
 import LoginPage from '@/pages/LoginPage.vue'
 
-// 路由配置
 const routes = [
   {
     path: '/login',
-    name: 'loginpage',
+    name: 'login',
     component: LoginPage,
     meta: { title: '用户登录', requiresAuth: false }
   },
@@ -22,31 +19,25 @@ const routes = [
   }
 ]
 
-// 创建路由实例
 const router = createRouter({
   history: createWebHistory(),
   routes
 })
 
-// 全局前置守卫（登录验证）
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
   const token = userStore.token || localStorage.getItem('token')
+  const loggedIn = !!(token || userStore.userInfo)
 
-  // 设置网页标题
   if (to.meta.title) {
     document.title = `${to.meta.title} - wzz用户端`
   }
 
-  // 需要登录的页面
-  if (to.meta.requiresAuth && !token) {
+  if (to.meta.requiresAuth && !loggedIn) {
     next({ name: 'login' })
-  } 
-  // 已登录访问登录页 → 自动跳转 Dashboard
-  else if (to.name === 'login' && token) {
+  } else if (to.name === 'login' && loggedIn) {
     next({ name: 'dashboard' })
-  } 
-  else {
+  } else {
     next()
   }
 })
