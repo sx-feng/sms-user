@@ -1,3 +1,5 @@
+﻿
+
 <template>
   <div class="login-page">
     <div class="login-card">
@@ -5,15 +7,15 @@
 
       <h2 class="title">手机号验证码平台登录</h2>
       <el-form :model="form" :rules="rules" ref="loginForm" label-position="top">
-        <el-form-item label="用户ID" prop="userId">
-          <el-input v-model="form.userId" placeholder="请输入用户ID" clearable />
+        <el-form-item label="用户ID" prop="userName">
+          <el-input v-model="form.userName" placeholder="请输入用户ID" clearable />
         </el-form-item>
 
         <el-form-item label="密码" prop="password">
           <el-input
             v-model="form.password"
             placeholder="请输入密码"
-            show-password
+            show-password    
             clearable
           />
         </el-form-item>
@@ -31,11 +33,11 @@
       </el-form>
 
       <div class="footer">
-        <span>© 2024 手机号与验证码获取平台 保留所有权利</span>
+        <span>© 2024 手机号与验证码获取平台. 保留所有权利.</span>
       </div>
     </div>
   </div>
-  </template>
+</template>
 
 <script setup>
 import { ref } from 'vue'
@@ -50,31 +52,47 @@ const loginForm = ref()
 const loading = ref(false)
 
 const form = ref({
-  userId: '',
+  userName: '',
   password: ''
 })
 
 const rules = {
-  userId: [{ required: true, message: '请输入用户ID', trigger: 'blur' }],
+  userName: [{ required: true, message: '请输入用户ID', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
 const handleLogin = () => {
-  loginForm.value?.validate(async (valid) => {
+  loginForm.value.validate(async (valid) => {
     if (!valid) return
     loading.value = true
+
     try {
       const res = await getUserInfo(
-        form.value.userId,
+        form.value.userName,
         form.value.password
       )
-      const success =  res?.data?.status === 0
-      if (success) {
+
+      if (res.data.status === 0) {
         ElMessage.success('登录成功')
-        userStore.setUserInfo(res.data || {})
-        router.push({ name: 'dashboard' })
+
+        // 直接使用用户输入的用户名，而不是后端返回的
+        const userName = form.value.userName // 使用前端输入的用户名
+        const password = form.value.password
+
+        // 设置 userStore 和 localStorage
+        userStore.setUserInfo(res.data, userName, password) // 将 userName 和 password 存入 store
+        localStorage.setItem('u', userName) // 存用户名
+        localStorage.setItem('p', password) // 存密码
+
+        console.log('Username:', userName)
+        console.log('Password:', password)
+        console.log('u:', userStore.userName, 'p:', userStore.password, 'token:', userStore.token)
+
+        // 跳转到仪表盘
+        router.push('/dashboard')
+
       } else {
-        ElMessage.error(res?.message || '登录失败')
+        ElMessage.error(res.message || '登录失败')
       }
     } catch (e) {
       ElMessage.error('请求异常，请检查网络')
@@ -83,6 +101,7 @@ const handleLogin = () => {
     }
   })
 }
+
 </script>
 
 <style scoped lang="scss">
@@ -137,4 +156,3 @@ const handleLogin = () => {
   }
 }
 </style>
-

@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+﻿import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 import { createPinia } from 'pinia'
@@ -8,8 +8,14 @@ import 'element-plus/dist/index.css'
 const app = createApp(App)
 const pinia = createPinia()
 
-app.use(pinia)   // ✅ 必须在这里注册 Pinia
+app.use(pinia)
 app.use(router)
 app.use(ElementPlus)
 
+import { useUserStore } from '@/store/userstore'
+const userStore = useUserStore()
+userStore.loadFromStorage && userStore.loadFromStorage()
+
 app.mount('#app')
+
+

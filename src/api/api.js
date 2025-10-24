@@ -1,45 +1,81 @@
-import { request } from "@/utils/request";
-/* ====== 用户层接口（agent 角度调用） ====== */
+/* ====== 用户 + 代理层接口（支持表单/Store 两种来源）====== */
+import { request } from '@/utils/request'
+import { useUserStore } from '@/store/userstore'
+import dayjs from 'dayjs'
 
-// 登录并获取详细信息
+function withAuth(biz = {}) {
+  const store = useUserStore()
+  return {
+    userName: store.userName || localStorage.getItem('u') || '',
+    password: store.password || localStorage.getItem('p') || '',
+    ...biz,
+  }
+}
+
+// 从参数或 Store 组装账号信息
+function authParams(userName, password, extra = {}) {
+  if (typeof userName === 'string') {
+    return { userName, password: password ?? '', ...extra }
+  }
+  return withAuth(extra)
+}
+
+/* ---------- 用户层 ---------- */
 export const getUserInfo = (userName, password) =>
-  request(0, '/api/user/info', { userName, password }, true)
+  request(0, '/api/user/info', authParams(userName, password), true)
 
-// 查询账户余额
-export const getUserBalance = (userName, password) =>
-  request(0, '/api/user/getBalance', { userName, password }, true)
-// 获取号码（取号）
-export const getNumber = (userName, password, projectId, lineId) =>
-  request(0, '/api/user/getNumber', { userName, password, projectId, lineId }, true)
-// 获取验证码（取码）
-export const getCode = (userName, password, phoneNumber) =>
-  request(0, '/api/user/getCode', { userName, password, phoneNumber }, true)
+export const getBalance = (userName, password) =>
+  request(0, '/api/user/getBalance', authParams(userName, password), true)
+export const getUserBalance = getBalance
 
-// 查询号码记录（分页）
-export const listNumbers = (userName, password, status, startTime, endTime, page = 1, size = 10) =>
-  request(0, '/api/user/listNumbers', { userName, password, status, startTime, endTime, page, size }, true)
+export const getNumber = (a, b, c, d) => {
+  // 形态1：getNumber(userName, password, projectId, lineId)
+  if (typeof a === 'string') {
+    const userName = a
+    const password = b
+    const projectId = c
+    const lineId = d
+    return request(0, '/api/user/getNumber', authParams(userName, password, { projectId, lineId }), true)
+  }
+  // 形态2：getNumber(projectId, lineId)
+  const projectId = a
+  const lineId = b
+  return request(0, '/api/user/getNumber', withAuth({ projectId, lineId }), true)
+}
 
-// 修改密码
-export const updatePassword = ({ userName, oldPassword, newPassword }) =>
-  request(1, '/api/user/update/passward', { userName, oldPassword, newPassword }, true)
+export const getCode = (userNameOrPhone, passwordMaybe, phoneMaybe) => {
+  // 形态1：getCode(userName, password, phoneNumber)
+  if (typeof userNameOrPhone === 'string' && typeof passwordMaybe === 'string' && typeof phoneMaybe === 'string') {
+    return request(0, '/api/user/getCode', authParams(userNameOrPhone, passwordMaybe, { phoneNumber: phoneMaybe }), true)
+  }
+  // 形态2：getCode(phoneNumber)
+  const phoneNumber = userNameOrPhone
+  return request(0, '/api/user/getCode', withAuth({ phoneNumber }), true)
+}
 
-// 获取公告
+export const listNumbers = (status, startTime, endTime, page = 1, size = 10) =>
+  request(0, '/api/user/listNumbers', withAuth({
+    status,
+    startTime: startTime ? dayjs(startTime).format('YYYY-MM-DD HH:mm:ss') : '',
+    endTime: endTime ? dayjs(endTime).format('YYYY-MM-DD HH:mm:ss') : '',
+    page,
+    size,
+  }), true)
+
+export const updatePassword = (oldPassword, newPassword) =>
+  request(1, '/api/user/update/passward', withAuth({ oldPassword, newPassword }), true)
+
 export const getNotice = () => request(0, '/api/user/notice', {}, true)
 
-// 查询用户项目列表
-export const listUserProjects = (userName, password) =>
-  request(0, '/api/user/by-user/listProjects', { userName, password }, true)
+export const listUserProjects = () =>
+  request(0, '/api/user/by-user/listProjects', withAuth(), true)
 
-// 查询项目可用线路
-export const listProjectLines = (userName, password, projectId) =>
-  request(0, '/api/user/listProjectLines', { userName, password, projectId }, true)
+export const listProjectLines = (projectId) =>
+  request(0, '/api/user/listProjectLines', withAuth({ projectId }), true)
 
-/* ====== 代理层接口（agent 角度调用） ====== */
-
-// 下级账单流水（GET，Query 参数）
+/* ---------- 代理层 ---------- */
 export const viewAgentUserLedger = (params) =>
   request(0, '/api/agent/subordinate-ledgers', params, true)
 
-// 代理仪表盘统计
 export const getAgentDashboard = () =>
-  request(0, '/api/agent/dashboard-stats', {}, true)                                                                              
+  request(0, '/api/agent/dashboard-stats', {}, true)

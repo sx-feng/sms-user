@@ -12,7 +12,7 @@ const routes = [
     meta: { title: '用户登录', requiresAuth: false }
   },
   {
-    path: '/',
+    path: '/dashboard',
     name: 'dashboard',
     component: DashBoard,
     meta: { title: '控制台', requiresAuth: true }
