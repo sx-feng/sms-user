@@ -82,6 +82,8 @@
       </div>
     </el-card>
 
+    <RecordDialog v-model="recordDialogVisible" />
+
     <!-- 页脚 -->
     <div class="footer">© 2024 手机号与验证码获取平台 版权所有</div>
   </div>
@@ -92,13 +94,15 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/userstore'
-import { getUserBalance, getNumber } from '@/api/api'
+import { getBalance, getNumber ,listNumbers,listProjectLines} from '@/api/api'
+import RecordDialog from '@/components/RecordDialog.vue'
 
 const takeCount = ref(1)
 const filterEnabled = ref(false)
 const projectId = ref('')
 const selectedLine = ref('')
 const lineList = ref([])
+const recordDialogVisible = ref(false)
 
 const recordList = ref([])
 const total = ref(0)
@@ -109,33 +113,40 @@ const loading = ref(false)
 // 模拟获取线路列表
 const getLineList = async () => {
   lineList.value = [
-    { id: 201, name: '线路 A' },
-    { id: 202, name: '线路 B' },
-    { id: 203, name: '线路 C' },
+   
   ]
 }
 
 // 模拟获取取号记录
 const getRecordList = async () => {
   loading.value = true
-  setTimeout(() => {
-    recordList.value = [
-      { projectId: '1001', lineId: '201', phone: '+86 138 **** 1234', code: '123456', time: 3.2, progress: 65, status: '成功' },
-      { projectId: '1002', lineId: '203', phone: '+86 139 **** 5678', code: '', time: 1.8, progress: 30, status: '等待中' },
-      { projectId: '1001', lineId: '202', phone: '+86 137 **** 9101', code: '987654', time: 5.7, progress: 95, status: '失败' },
-      { projectId: '1003', lineId: '205', phone: '+86 135 **** 1121', code: '456789', time: 2.5, progress: 50, status: '成功' },
-      { projectId: '1002', lineId: '201', phone: '+86 135 **** 3141', code: '', time: 1.1, progress: 20, status: '等待中' },
-    ]
-    total.value = 20
+  try {
+    // 格式化时间
+    const [start, end] = Array.isArray(dateRange.value) ? dateRange.value : []
+    const startFormatted = start ? start.format("YYYY-MM-DD HH:mm:ss") : ""
+    const endFormatted = end ? end.format("YYYY-MM-DD HH:mm:ss") : ""
+
+    // 请求数据
+    const res = await listNumbers(status.value, startFormatted, endFormatted, page.value, pageSize.value)
+    
+    if (res.ok || res.code === 200) {
+      const { items, total: t } = parseListResponse(res)
+      recordList.value = items
+      total.value = t
+    } else {
+      recordList.value = []
+      total.value = 0
+    }
+  } finally {
     loading.value = false
-  }, 600)
+  }
 }
 
 // 取号
 const userStore = useUserStore()
 const handleTakeNumber = async () => {
-  const u = userStore.userInfo?.userName
-  const p = userStore.userInfo?.password
+  const u = localStorage.getItem('u')
+  const p = localStorage.getItem('p')
   if (!u || !p) {
     ElMessage.error('未登录，无法取号')
     return
@@ -161,24 +172,33 @@ const handleTakeNumber = async () => {
 
 // 查询账户余额
 const handleCheckUser = async () => {
-  const u = userStore.userInfo?.userName
-  const p = userStore.userInfo?.password
+  const u = localStorage.getItem('u')
+  const p = localStorage.getItem('p')
+  
+  // 检查用户是否已登录
   if (!u || !p) {
     ElMessage.error('未登录，无法查询余额')
     return
   }
-  const res = await getUserBalance(u, p)
-  if (res?.ok || res?.code === 200) {
-    const balance = res?.data?.balance ?? res?.data ?? '-'
-    ElMessage.success(`当前余额：${balance}`)
+
+  // 请求余额
+  const res = await getBalance(u, p)
+  if (res.code === 0) {
+    // 成功，处理返回的数据并显示余额
+    const balance = res.data || '-'
+    console.log(res.data,"uhgwesfiyhweiuf")
+    ElMessage.success(`查询成功，当前余额：${balance}`)
+    
   } else {
-    ElMessage.error(res?.message || '查询余额失败')
+    // 查询失败，显示错误信息
+    ElMessage.error(res.msg || '查询败')
   }
 }
 
-// 流水记录弹窗（占位）
+
+// 流水记录弹窗
 const handleCheckFlow = () => {
-  ElMessage.info('打开流水记录弹窗')
+  recordDialogVisible.value = true
 }
 
 // 分页切换

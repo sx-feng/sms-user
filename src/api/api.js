@@ -7,7 +7,7 @@ export const getUserInfo = (userName, password) =>
   auth(0, '/api/user/info', { userName, password }, true)
 
 // 查询账户余额
-export const getUserBalance = () =>
+export const getBalance = () =>
   auth(0, '/api/user/getBalance', {}, true)
 
 // 获取号码（取号）
@@ -44,8 +44,8 @@ export const listProjectLines = (projectId) =>
 /* ====== 代理层接口（agent 角度调用） ====== */
 
 // 下级账单流水（GET，Query 参数）
-export const viewAgentUserLedger = (params) =>
-  auth(0, '/api/agent/subordinate-ledgers', params, true)
+export const viewAgentUserLedger = (startTime, endTime, page = 1, size = 10) =>
+  auth(0, '/api/user/ledger/list', {startTime, endTime, page, size},true)
 
 // 获取代理仪表盘数据
 export const getAgentDashboard = () =>

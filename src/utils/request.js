@@ -19,7 +19,7 @@ export async function request(methodFlag, url, jsonData = {}, isquery = false) {
         .join('&');
       finalUrl += (url.includes('?') ? '&' : '?') + query;
     }
-
+                                                                                                                                      
     const options = {
       method: methodFlag === 1 ? 'POST' : 'GET',
       headers: {
