@@ -155,6 +155,9 @@ const parseListResponse = (res) => {
   }
   return { items: [], total: 0 }
 }
+
+
+
 // 模拟获取取号记录
 const getRecordList = async () => {
   loading.value = true
