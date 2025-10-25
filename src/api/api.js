@@ -12,8 +12,8 @@ export const getBalance = () =>
   auth(0, '/api/user/getBalance', {}, true)
 
 // 获取号码（取号）
-export const getNumber = (projectId, lineId) =>
-  auth(0, '/api/user/getNumber', { projectId, lineId }, true)
+export const getNumber = (projectId, lineId,filterEnabled) =>
+  auth(0, '/api/user/getNumber', { projectId, lineId ,filterEnabled}, true)
 
 // 获取验证码（取码）
 export const getCode = (phoneNumber) => {
@@ -46,7 +46,7 @@ export const listProjectLines = (projectId) =>
 
 // 下级账单流水（GET，Query 参数）
 export const viewAgentUserLedger = ( page = 1, size = 10) =>
-  auth(0, '/api/user/ledger/list', { page, size},true)
+  auth(0, '/api/user/ledger/list', { page, size},true)            
 
 // 获取代理仪表盘数据
 export const getAgentDashboard = () =>

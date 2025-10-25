@@ -204,7 +204,7 @@ const handleTakeNumber = async () => {
   try {
     loading.value = true
     console.log(u,p)
-    const res = await getNumber( projectId.value, selectedLine.value)
+    const res = await getNumber( projectId.value, selectedLine.value, filterEnabled.value)
     console.log(projectId.value,selectedLine.value,":'‘“”'")
     if (res?.ok || res?.code === 0) {
       ElMessage.success('取号请求成功')
@@ -212,7 +212,7 @@ const handleTakeNumber = async () => {
     } else {
       ElMessage.error(res?.message || '取号失败')
     }
-  } finally {
+  } finally {             
     loading.value = false
   }
 }
