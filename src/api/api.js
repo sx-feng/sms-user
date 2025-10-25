@@ -7,7 +7,7 @@ export const getUserInfo = (userName, password) =>
   auth(0, '/api/user/info', { userName, password }, true)
 
 // 查询账户余额
-export const getUserBalance = () =>
+export const getBalance = () =>
   auth(0, '/api/user/getBalance', {}, true)
 
 // 获取号码（取号）
@@ -20,8 +20,8 @@ export const getCode = (phoneNumber) => {
 }
 
 // 查询号码记录（分页）
-export const listNumbers = (status, startTime, endTime, page = 1, size = 10) =>
-  auth(0, '/api/user/listNumbers', { status, startTime, endTime, page, size }, true)
+export const listNumbers = (page = 1, size = 10) =>
+  auth(0, '/api/user/listNumbers', { page, size }, true)
 
 // 修改密码（接口路径按现有保持）
 export const updatePassword = ({ oldPassword, newPassword }) => {
@@ -44,8 +44,8 @@ export const listProjectLines = (projectId) =>
 /* ====== 代理层接口（agent 角度调用） ====== */
 
 // 下级账单流水（GET，Query 参数）
-export const viewAgentUserLedger = (params) =>
-  auth(0, '/api/agent/subordinate-ledgers', params, true)
+export const viewAgentUserLedger = ( page = 1, size = 10) =>
+  auth(0, '/api/user/ledger/list', { page, size},true)
 
 // 获取代理仪表盘数据
 export const getAgentDashboard = () =>
