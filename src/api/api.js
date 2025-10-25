@@ -7,6 +7,7 @@ export const getUserInfo = (userName, password) =>
   auth(0, '/api/user/info', { userName, password }, true)
 
 // 查询账户余额
+
 export const getBalance = () =>
   auth(0, '/api/user/getBalance', {}, true)
 

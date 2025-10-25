@@ -1,118 +1,119 @@
 <template>
-  <el-dialog v-model="dialogVisible" title="流水记录" width="800px">
-    <div class="filter-bar">
-      <!-- 日期筛选 -->
-      
-      <el-button type="primary" @click="fetchList">查询</el-button>
-      <el-button @click="resetFilters">重置</el-button>
+<el-dialog
+  :model-value="modelValue"
+  @update:modelValue="emit('update:modelValue', $event)"
+  title="流水记录"
+  width="90%"
+  top="5vh"
+  :close-on-click-modal="false"
+>
+
+    <div class="dialog-body">
+      <el-table :data="records" border stripe v-loading="loading">
+        <el-table-column prop="id" label="记录ID" width="90" />
+        <el-table-column prop="projectId" label="项目ID" width="100" />
+        <el-table-column prop="lineId" label="线路ID" width="100" />
+        <el-table-column prop="phoneNumber" label="手机号" min-width="140" />
+        <el-table-column prop="code" label="验证码" min-width="120" />
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.status === '成功'" type="success">成功</el-tag>
+            <el-tag v-else-if="row.status === '等待中'" type="warning">等待中</el-tag>
+            <el-tag v-else type="danger">失败</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="getNumberTime" label="取号时间" width="180" />
+        <el-table-column prop="codeReceivedTime" label="收到时间" width="180" />
+      </el-table>
+
+      <div class="pagination">
+        <el-pagination
+          background
+          layout="prev, pager, next"
+          :total="total"
+          :page-size="pageSize"
+          @current-change="handlePageChange"
+        />
+      </div>
     </div>
 
-    <!-- 表格 -->
-    <el-table :data="list" border stripe v-loading="loading">
-      <el-table-column prop="id" label="ID" width="100" />
-      <el-table-column prop="lineId" label="线路ID" width="100" />
-      <el-table-column prop="phoneNumber" label="手机号" min-width="140" />
-      <el-table-column prop="code" label="验证码" min-width="120" />
-      <el-table-column label="状态" width="100">
-        <template #default="{ row }">
-          <el-tag v-if="row.status === '成功'" type="success">成功</el-tag>
-          <el-tag v-else-if="row.status === '等待中'" type="warning">等待中</el-tag>
-          <el-tag v-else type="danger">失败</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="timestamp" label="时间" min-width="160" />
-      <el-table-column prop="remark" label="类型" min-width="160" />
-    </el-table>
-
-    <!-- 分页 -->
-    <el-pagination
-      background
-      layout="prev, pager, next"
-      :total="total"
-      :page-size="pageSize"
-      :current-page="page"
-      @current-change="onPageChange"
-    />
     <template #footer>
-      <el-button @click="dialogVisible = false">关闭</el-button>
+      <el-button @click="emit('update:modelValue', false)">关闭</el-button>
+
     </template>
   </el-dialog>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { viewAgentUserLedger } from '@/api/api'
+import { ref, watch } from "vue"
+import { ElMessage } from "element-plus"
+import { listNumbers } from "@/api/api.js"
 
 const props = defineProps({
-  modelValue: { type: Boolean, default: false },
-})
-const emit = defineEmits(['update:modelValue'])
-
-const dialogVisible = computed({
-  get: () => props.modelValue,
-  set: (val) => emit('update:modelValue', val),
+  modelValue: { type: Boolean, required: true },
 })
 
-const status = ref('')
-const dateRange = ref([])
-const list = ref([])
-const total = ref(0)
-const page = ref(1)
-const pageSize = ref(10)
+const emit = defineEmits(["update:modelValue"])
+
+const records = ref([])
 const loading = ref(false)
+const total = ref(0)
+const pageSize = ref(10)
+const currentPage = ref(1)
 
-const parseListResponse = (res) => {
-  const data = res?.data
-  if (Array.isArray(data)) {
-    return { items: data, total: data.length }
-  }
-  if (data && Array.isArray(data.list)) {
-    return { items: data.list, total: data.total ?? data.count ?? data.list.length }
-  }
-  return { items: [], total: 0 }
-}
-
-const fetchList = async () => {
+// 获取流水记录
+const fetchRecords = async () => {
   loading.value = true
   try {
-    const res = await viewAgentUserLedger(page.value, pageSize.value)
-    console.log("接口响应:", res)  
-    if (res?.ok || res?.code === 0) {
-     
-      list.value =  res.data.records
-      total.value = res.data.total || 0
+    const res = await listNumbers(currentPage.value, pageSize.value)
+    if (res.code === 0 && res.data) {
+      const { records: items, total: t } = res.data
+      records.value = items || []
+      total.value = t || 0
     } else {
-      list.value = []
+      records.value = []
       total.value = 0
     }
+  } catch (err) {
+    console.error("加载流水记录失败：", err)
+    ElMessage.error("加载流水记录失败")
   } finally {
     loading.value = false
   }
 }
 
-
-const onPageChange = (p) => {
-  page.value = p
-  fetchList()
+// 分页切换
+const handlePageChange = (page) => {
+  currentPage.value = page
+  fetchRecords()
 }
 
-const resetFilters = () => {
-  status.value = ''
-  dateRange.value = []
-  page.value = 1
-  fetchList()
-}
-
-watch(dialogVisible, (v) => {
-  if (v) {
-    page.value = 1
-    fetchList()
+// 监听弹窗打开状态
+watch(
+  () => props.modelValue,
+  (val) => {
+    if (val) {
+      fetchRecords()
+    }
   }
-})
+)
+
+// 绑定关闭
+watch(
+  () => props.modelValue,
+  (val) => {
+    if (!val) emit("update:modelValue", false)
+  }
+)
 </script>
 
-<style scoped>
-.filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
-.w-140 { width: 140px; }
-.pagination { margin-top: 12px; text-align: right; }
+<style scoped lang="scss">
+.dialog-body {
+  padding: 10px;
+
+  .pagination {
+    margin-top: 15px;
+    text-align: right;
+  }
+}
 </style>

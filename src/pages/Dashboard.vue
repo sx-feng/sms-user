@@ -1,7 +1,8 @@
 <template>
   <div class="dashboard-page">
-    <!-- 左上角退出按钮 -->
-    <el-button class="logout-btn" type="danger" size="small" @click="handleLogout">退出登录</el-button>
+   
+    
+<NoticeBar />
 
     <!-- 顶部操作区域 -->
     <el-card class="top-card" shadow="hover">
@@ -11,6 +12,7 @@
           <div class="section-title">取号控制</div>
           <el-input-number v-model="takeCount" :min="1" :max="10" size="small" />
           <el-button type="primary" @click="handleTakeNumber">取号</el-button>
+    
         </div>
 
         <!-- 账户信息 -->
@@ -90,7 +92,15 @@
     </el-card>
 
     <RecordDialog v-model="recordDialogVisible" />
-
+<!-- 固定右下角退出按钮 -->
+<el-button
+  class="logout-float-btn"
+  type="danger"
+  size="default"
+  @click="handleLogout"
+>
+  退出登录
+</el-button>
     <!-- 页脚 -->
     <div class="footer">© 2024 手机号与验证码获取平台 版权所有</div>
   </div>
@@ -104,6 +114,7 @@ import { useUserStore } from '@/store/userstore'
 import { getBalance, getNumber ,listNumbers ,listProjectLines} from '@/api/api'
 import { watch } from 'vue'
 import RecordDialog from '@/components/RecordDialog.vue'
+import NoticeBar from '@/components/NoticeBar.vue'
 
 const takeCount = ref(1)
 const filterEnabled = ref(false)
@@ -155,6 +166,9 @@ const parseListResponse = (res) => {
   }
   return { items: [], total: 0 }
 }
+
+
+
 // 模拟获取取号记录
 const getRecordList = async () => {
   loading.value = true
@@ -190,8 +204,9 @@ const handleTakeNumber = async () => {
   try {
     loading.value = true
     console.log(u,p)
-    const res = await getNumber(u, p, projectId.value, selectedLine.value)
-    if (res?.ok || res?.code === 200) {
+    const res = await getNumber( projectId.value, selectedLine.value)
+    console.log(projectId.value,selectedLine.value,":'‘“”'")
+    if (res?.ok || res?.code === 0) {
       ElMessage.success('取号请求成功')
       getRecordList()
     } else {
@@ -287,12 +302,19 @@ html, body {
   background: #f5f7fa;
   min-height: 100vh;
 
-  .logout-btn {
-    position: fixed;
-    top: 12px;
-    left: 12px;
-    z-index: 1000;
-  }
+.logout-float-btn {
+  position: fixed;
+  bottom: 30px; /* 距离底部10像素 */
+  right: 100px;  /* 距离右侧10像素 */
+  
+  box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-weight: 600;
+
+}
+
+
 
   .top-card {
     margin-bottom: 20px;
