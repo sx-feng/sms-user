@@ -2,8 +2,19 @@
   <div class="dashboard-page">
    
     
-<NoticeBar />
 
+<div class="top-ba">
+  <div class="left">
+    <div class="section-title">控制面板</div>
+  </div>
+
+  <div class="right">
+    <el-button type="danger" size="small" @click="handleLogout">
+      退出登录
+    </el-button>
+  </div>
+</div>
+<NoticeBar />
     <!-- 顶部操作区域 -->
     <el-card class="top-card" shadow="hover">
       <div class="top-bar">
@@ -92,15 +103,8 @@
     </el-card>
 
     <RecordDialog v-model="recordDialogVisible" />
-<!-- 固定右下角退出按钮 -->
-<el-button
-  class="logout-float-btn"
-  type="danger"
-  size="default"
-  @click="handleLogout"
->
-  退出登录
-</el-button>
+
+
     <!-- 页脚 -->
     <div class="footer">© 2024 手机号与验证码获取平台 版权所有</div>
   </div>
@@ -295,6 +299,16 @@ onMounted(() => {
 html, body {
   margin: 0;
   padding: 0;
+}
+.top-ba {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  background: #fff;
+  padding: 10px 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .dashboard-page {
