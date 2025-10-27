@@ -16,47 +16,93 @@
 </div>
 <NoticeBar />
     <!-- 顶部操作区域 -->
+     
     <el-card class="top-card" shadow="hover">
-      <div class="top-bar">
-        <!-- 取号控制 -->
-        <div class="section">
-          <div class="section-title">取号控制</div>
-          <el-input-number v-model="takeCount" :min="1" :max="10" size="small" />
-          <el-button type="primary" @click="handleTakeNumber">取号</el-button>
-    
-        </div>
+   <div class="top-bar">
+  <!-- 取号控制 -->
+  <div class="section vertical">
+    <div class="section-title">取号控制</div>
+    <div class="section-content">
+<el-button
+  :type="takingNumber ? 'danger' : 'primary'"
+  :loading="takingNumber && !cancelFetch"
+  @click="handleTakeNumber"
+>
+  {{ takingNumber ? '取消取号' : '取号' }}
+</el-button>
+<!-- 状态提示区 -->
+<div v-if="statusMessage" class="status-bar">
+  {{ statusMessage }}
+</div>
 
-        <!-- 账户信息 -->
-        <div class="section">
-          <div class="section-title">账户信息</div>
-          <el-button @click="handleCheckUser" size="small" type="primary">查询账户余额</el-button>
-        </div>
 
-        <!-- 流水记录 -->
-        <div class="section">
-          <div class="section-title">流水记录</div>
-          <el-button @click="handleCheckFlow" size="small" type="primary">查询流水</el-button>
-        </div>
+      <el-input-number v-model="takeCount" :min="1" :max="10" size="small" />
+     
+    </div>
+  </div>
 
-        <!-- 筛选设置 -->
-        <div class="section">
-          <div class="section-title">筛选设置</div>
-          <el-switch v-model="filterEnabled" active-text="启用筛选" />
-        </div>
-      </div>
+  <!-- 账户信息 -->
+  <div class="section vertical">
+    <div class="section-title">账户信息</div>
+    <div class="section-content">
+      <el-button @click="handleCheckUser" size="small" type="primary">查询账户余额</el-button>
+    </div>
+  </div>
 
-      <div class="filter-row">
-        <el-input v-model="projectId" placeholder="请输入项目ID" style="width: 180px" size="small" />
-       <el-select v-model="selectedLine" placeholder="请选择线路" size="small" style="width: 180px">
-  <el-option
-    v-for="line in lineList"
-    :key="line"
-    :label="`线路 ${line}`"
-    :value="line"
-  />
-</el-select>
+  <!-- 流水记录 -->
+  <div class="section vertical">
+    <div class="section-title">流水记录</div>
+    <div class="section-content">
+      <el-button @click="handleCheckFlow" size="small" type="primary">查询流水</el-button>
+    </div>
+  </div>
 
-      </div>
+  <!-- 筛选设置 -->
+  <div class="section vertical">
+    <div class="section-title">筛选设置</div>
+    <div class="section-content">
+      <el-input placeholder="请输入筛选卡密" style="width:160px" />
+      <el-switch v-model="filterEnabled" active-text="启用筛选" />
+    </div>
+  </div>
+</div>
+
+
+<!-- 第二排：项目ID + 线路选择 -->
+<div class="filter-row">
+  <!-- 项目 ID 模块 -->
+  <div class="section vertical">
+    <div class="section-title">项目 ID</div>
+    <div class="section-content">
+      <el-input
+        v-model="projectId"
+        placeholder="请输入项目ID"
+        size="small"
+      />
+    </div>
+  </div>
+
+  <!-- 线路选择模块 -->
+  <div class="section vertical">
+    <div class="section-title">线路选择</div>
+    <div class="section-content">
+      <el-select
+        v-model="selectedLine"
+        placeholder="请选择线路"
+        size="small"
+      >
+        <el-option
+          v-for="line in lineList"
+          :key="line"
+          :label="`线路 ${line}`"
+          :value="line"
+        />
+      </el-select>
+    </div>
+  </div>
+</div>
+
+
     </el-card>
 
     <!-- 取号记录表格 -->
@@ -115,17 +161,26 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/userstore'
-import { getBalance, getNumber ,listNumbers ,listProjectLines} from '@/api/api'
+import { getBalance, getNumber ,listNumbers ,listProjectLines,getCode} from '@/api/api'
 import { watch } from 'vue'
 import RecordDialog from '@/components/RecordDialog.vue'
 import NoticeBar from '@/components/NoticeBar.vue'
-
+const currentPhoneNumber = ref('')
 const takeCount = ref(1)
 const filterEnabled = ref(false)
 const projectId = ref('')
 const selectedLine = ref('')
 const lineList = ref([])
 const recordDialogVisible = ref(false)
+// 当前是否正在取号中
+const takingNumber = ref(false)
+// 是否取消轮询
+const cancelFetch = ref(false)
+// 状态提示文本
+const statusMessage = ref('')
+// 最新验证码
+const lastCode = ref('')
+
 
 const recordList = ref([])
 const total = ref(0)
@@ -195,6 +250,12 @@ const getRecordList = async () => {
 // 取号
 const userStore = useUserStore()
 const handleTakeNumber = async () => {
+  // ✅ 如果正在取号，点击则取消
+  if (takingNumber.value) {
+    cancelTakeNumber()
+    return
+  }
+
   const u = localStorage.getItem('u')
   const p = localStorage.getItem('p')
   if (!u || !p) {
@@ -205,21 +266,114 @@ const handleTakeNumber = async () => {
     ElMessage.warning('请先选择项目和线路')
     return
   }
+
   try {
+    takingNumber.value = true
+    cancelFetch.value = false
     loading.value = true
-    console.log(u,p)
-    const res = await getNumber( projectId.value, selectedLine.value, filterEnabled.value)
-    console.log(projectId.value,selectedLine.value,":'‘“”'")
-    if (res?.ok || res?.code === 0) {
-      ElMessage.success('取号请求成功')
-      getRecordList()
+ statusMessage.value = '📞 正在获取手机号中...'
+    const res = await getNumber(projectId.value, selectedLine.value, filterEnabled.value)
+    if (res?.code === 0 && res.data) {
+      const phone = res.data
+      currentPhoneNumber.value = phone
+      localStorage.setItem('phone', phone)
+      ElMessage.success(`✅ 取号成功，手机号：${phone}`)
+ statusMessage.value = `✅ 已获取手机号：${phone}`
+
+    // ✅ 开始轮询验证码
+    statusMessage.value = '⏳ 正在获取验证码...'
+      // ✅ 开始轮询验证码
+     fetchVerificationCode(phone)
     } else {
-      ElMessage.error(res?.message || '取号失败')
+      ElMessage.error(res?.msg || '取号失败')
+       statusMessage.value = '❌ 取号失败'
     }
-  } finally {             
+  } finally {
+    takingNumber.value = false
     loading.value = false
   }
 }
+
+
+/**
+ * 轮询获取验证码
+* @param {string} phoneNumber 手机号
+ * @param {number} _maxSeconds 最大轮询时长（默认180秒 = 3分钟）
+ * @param {number} _intervalMs 每次请求间隔（默认1000ms = 1秒）
+ */
+/**
+ * 轮询获取验证码
+ * @param {string} phoneNumber 手机号
+ * @param {number} maxSeconds 最大轮询时长（默认180秒 = 3分钟）
+ * @param {number} intervalMs 每次请求间隔（默认1000ms = 1秒）
+ */
+async function fetchVerificationCode(phoneNumber, maxSeconds = 180, intervalMs = 2000) {
+  try {
+    const u = localStorage.getItem('u')
+    const p = localStorage.getItem('p')
+    if (!u || !p) {
+      ElMessage.warning('未登录，无法获取验证码')
+      return
+    }
+
+    if (!phoneNumber) {
+      ElMessage.warning('未检测到手机号，请先取号')
+      return
+    }
+
+    ElMessage.info(`开始获取验证码，手机号：${phoneNumber}`)
+
+    const startTime = Date.now()
+    let tryCount = 0
+
+    // 持续轮询直到超时或取消
+    while (!cancelFetch.value) {
+      if (cancelFetch.value) {
+        console.log('🛑 用户取消任务')
+        ElMessage.info('验证码获取已取消')
+        takingNumber.value = false
+        return
+      }
+
+      const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000)
+      if (elapsedSeconds >= maxSeconds) {
+        ElMessage.warning('⚠️ 已超过3分钟仍未获取到验证码，任务结束')
+        takingNumber.value = false
+        return
+      }
+
+      tryCount++
+      console.log(`🔁 第 ${tryCount} 次请求验证码...`)
+      const res = await getCode(phoneNumber)
+
+      if (res.code === 0 && res.data) {
+        ElMessage.success(`✅ 验证码获取成功：${res.data}`)
+         lastCode.value = res.data
+  statusMessage.value = `✅ 验证码已获取：${res.data}`
+        await getRecordList()
+        takingNumber.value = false
+        return res.data
+      }
+
+      // 每次请求间隔 1 秒
+      await new Promise((r) => setTimeout(r, intervalMs))
+    }
+  } catch (err) {
+    console.error('❌ 获取验证码异常:', err)
+    ElMessage.error('请求异常，请检查网络或接口')
+  } finally {
+    takingNumber.value = false
+  }
+}
+
+// ✅ 通用取消函数（可编程调用）
+function cancelTakeNumber() {
+  cancelFetch.value = true
+  takingNumber.value = false
+  ElMessage.warning('已取消取号任务')
+  statusMessage.value = '⚠️ 已取消任务'
+}
+
 
 // 查询账户余额
 const handleCheckUser = async () => {
@@ -291,7 +445,6 @@ watch(projectId, async (newVal) => {
 onMounted(() => {
   getLineList()
   getRecordList()
-
 })
 </script>
 
@@ -328,37 +481,48 @@ html, body {
 
 }
 
+.top-card {
+  .top-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between; /* ✅ 平均分布 */
+    gap: 20px; /* ✅ 间距统一为 20，与下方保持一致 */
 
-
-  .top-card {
-    margin-bottom: 20px;
-
-    .top-bar {
+    .section {
+      flex: 1; /* ✅ 平均占宽 */
+      min-width: 260px; /* ✅ 保证小屏不挤 */
       display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 10px;
+      flex-direction: column;
+      align-items: flex-start;
+      background: #fff;
+      // border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 10px 15px;
+    //  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+ 
+      .section-title {
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #333;
+        font-size: 14px;
+        margin-left: 2px;
+      }
 
-      .section {
+      .section-content {
+        width: 100%;
         display: flex;
         align-items: center;
         gap: 10px;
 
-        .section-title {
-          font-weight: 600;
-          font-size: 14px;
-          color: #333;
+        .el-input,
+        .el-select,
+        .el-input-number {
+          width: 100%;
         }
       }
     }
-
-    .filter-row {
-      display: flex;
-      gap: 15px;
-      margin-top: 10px;
-    }
   }
+}
 
   .record-card {
     .table-header {
@@ -397,4 +561,44 @@ html, body {
     font-size: 12px;
   }
 }
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  // margin-top: 15px;
+
+  .section.vertical {
+    flex: 1;
+    min-width: 260px; /* 防止过窄 */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: #fff;
+    // border: 1px solid #eee;
+    // border-radius: 8px;
+    padding: 10px 15px;
+    // box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+
+    .section-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 8px;
+      margin-left: 2px; /* 与输入框左对齐 */
+    }
+
+    .section-content {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .el-input,
+      .el-select {
+        width: 100%;
+      }
+    }
+  }
+}
+
 </style>
