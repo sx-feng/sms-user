@@ -56,13 +56,19 @@
   </div>
 
   <!-- 筛选设置 -->
-  <div class="section vertical">
-    <div class="section-title">筛选设置</div>
-    <div class="section-content">
-      <el-input placeholder="请输入筛选卡密" style="width:160px" />
-      <el-switch v-model="filterEnabled" active-text="启用筛选" />
-    </div>
+<div class="section vertical">
+  <div class="section-title">筛选设置</div>
+  <div class="section-content">
+    <el-input
+      v-model="filterKey"
+      placeholder="请输入筛选卡密"
+      style="width:160px"
+      @blur="saveFilterKey"   
+    />
+    <el-switch v-model="filterEnabled" active-text="启用筛选" />
   </div>
+</div>
+
 </div>
 
 
@@ -136,13 +142,33 @@
             <span class="time-text">{{ row.time }} 秒</span>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag v-if="row.status === '成功'" type="success">成功</el-tag>
-            <el-tag v-else-if="row.status === '等待中'" type="warning">等待中</el-tag>
-            <el-tag v-else type="danger">失败</el-tag>
-          </template>
-        </el-table-column>
+<el-table-column label="状态" width="100">
+  <template #default="{ row }">
+    <el-tag
+      :type="
+        row.code && row.code !== '-'
+          ? 'success'
+          : row.status === '等待中'
+            ? 'warning'
+            : row.status === 3
+              ? 'danger'
+              : 'danger'
+      "
+    >
+      {{
+        row.code && row.code !== '-'
+          ? '成功'
+          : row.status === '等待中'
+            ? '等待中'
+            : row.status === 3
+              ? '失败'
+              : '失败'
+      }}
+    </el-tag>
+  </template>
+</el-table-column>
+
+
       </el-table>
 
       <div class="pagination">
@@ -200,6 +226,14 @@ const getLineList = async () => {
    
   ]
 }
+const filterKey = ref(localStorage.getItem('filterKey') || '')
+
+// 监听变化或失焦保存
+function saveFilterKey() {
+  localStorage.setItem('filterKey', filterKey.value)
+  ElMessage.success('✅ 筛选卡密已保存')
+}
+
 const parseListResponse = (res) => {
   if (res?.data?.records) {
     const records = res.data.records.map(r => {
@@ -335,8 +369,16 @@ total.value += 1
  * @param {number} [time] 耗时（秒）
  */
 function updateRecordStatus(phoneNumber, status, code = '-', time = null) {
-  const target = recordList.value.find(r => r.phoneNumber === phoneNumber)
-  if (!target) return
+  // 优先更新同手机号中“最新的一条”（避免重复手机号时更新到旧行）
+  let idx = -1
+  for (let i = recordList.value.length - 1; i >= 0; i--) {
+    if (recordList.value[i]?.phoneNumber === phoneNumber) {
+      idx = i
+      break
+    }
+  }
+  if (idx === -1) return
+  const target = recordList.value[idx]
 
   let finalTime = time
   if (!finalTime || finalTime <= 0) {
@@ -407,29 +449,31 @@ async function fetchVerificationCode(phoneNumber, maxSeconds = 180, intervalMs =
       console.log(`🔁 第 ${tryCount} 次请求验证码...`)
       const res = await getCode(phoneNumber)
 
-      // ✅ 成功获取验证码
-      if (res.code === 0 && res.data) {
-        ElMessage.success(`✅ 验证码获取成功：${res.data}`)
-        lastCode.value = res.data
-        statusMessage.value = `✅ 验证码已获取：${res.data}`
+if (res.code === 0 && res.data) {
+  ElMessage.success(`✅ 验证码获取成功：${res.data}`)
+  lastCode.value = res.data
+  statusMessage.value = `✅ 验证码已获取：${res.data}`
 
-        // ✅ 更新为成功状态
-        updateRecordStatus(
-          phoneNumber,
-          '成功',
-          res.data,
-          Math.floor((Date.now() - startTime) / 1000)
-        )
+  // ✅ 马上标记为成功
+  updateRecordStatus(
+    phoneNumber,
+    '成功',
+    res.data,
+    Math.floor((Date.now() - startTime) / 1000)
+  )
 
-        takingNumber.value = false
+  // ✅ 强制触发 Vue 响应更新（防止表格没刷新）
+  recordList.value = [...recordList.value]
 
-        // ✅ 3秒后自动清空状态提示
-        setTimeout(() => {
-          statusMessage.value = ''
-        }, 3000)
+  takingNumber.value = false
 
-        return res.data
-      }
+  setTimeout(() => {
+    statusMessage.value = ''
+  }, 3000)
+
+  return res.data
+}
+
 
       // 每次请求间隔
       await new Promise(r => setTimeout(r, intervalMs))
@@ -545,6 +589,7 @@ onMounted(() => {
     }, 1000)
   }
 })
+
 
 onUnmounted(() => {
   if (progressTimer) {
