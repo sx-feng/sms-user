@@ -1,8 +1,5 @@
 <template>
   <div class="dashboard-page">
-   
-    
-
 <div class="top-ba">
   <div class="left">
     <div class="section-title">控制面板</div>
@@ -29,12 +26,7 @@
 >
   {{ takingNumber ? '取消取号' : '取号' }}
 </el-button>
-<!-- 状态提示区 -->
 
-
-
-      <!-- <el-input-number v-model="takeCount" :min="1" :max="10" size="small" /> -->
-     
     </div>
   </div>
 
