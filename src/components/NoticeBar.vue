@@ -1,15 +1,13 @@
 <template>
-  <div class="notice-bar" v-if="notices.length">
+  <div class="notice-bar" v-if="mergedNotice">
     <el-icon><BellFilled /></el-icon>
 
-    <!-- 公告内容滚动区 -->
-    <div class="notice-scroll">
-      <div
-        v-for="(item, index) in notices"
-        :key="index"
-        class="notice-item"
-        v-html="item.content"
-      ></div>
+    <!-- 滚动区域 -->
+    <div class="scroll-container">
+      <div class="scroll-content" ref="scrollContent">
+        <span v-html="mergedNotice"></span>
+        <span v-html="mergedNotice"></span> <!-- 第二份用于无缝循环 -->
+      </div>
     </div>
   </div>
 </template>
@@ -19,65 +17,66 @@ import { ref, onMounted, nextTick } from 'vue'
 import { BellFilled } from '@element-plus/icons-vue'
 import { getNotice } from '@/api/api.js'
 
-const notices = ref([])
+const mergedNotice = ref('')
+const scrollContent = ref(null)
 
 async function loadNotices() {
   try {
     const res = await getNotice()
     console.log('公告接口响应', res)
 
-    if (!res.ok) {
-      console.warn('加载公告失败:', res.message)
-      return
-    }
+    if (!res.ok) return console.warn('加载公告失败:', res.message)
 
     const d = res.data
+    let notices = []
 
     if (typeof d === 'string') {
-      notices.value = [{ title: '系统公告', content: d }]
+      notices = [d]
     } else if (Array.isArray(d)) {
-      notices.value = d.map(it => ({
-        title: it.title ?? it.noticeTitle ?? it.name ?? '公告',
-        content: it.content ?? it.noticeContent ?? it.desc ?? ''
-      }))
+      notices = d.map(it => it.title ?? it.noticeTitle ?? it.name ?? it.content ?? it.noticeContent ?? it.desc ?? '')
     } else if (d && typeof d === 'object') {
       const list = d.records || d.list || d.rows || []
-      notices.value = list.map(it => ({
-        title: it.title ?? it.noticeTitle ?? it.name ?? '公告',
-        content: it.content ?? it.noticeContent ?? it.desc ?? ''
-      }))
-    } else {
-      console.warn('公告格式无法识别:', d)
+      notices = list.map(it => it.title ?? it.noticeTitle ?? it.name ?? it.content ?? it.noticeContent ?? it.desc ?? '')
     }
 
+    // 拼接为单行公告（多个公告用间隔符隔开）
+    mergedNotice.value = notices.join('　　｜　　') || '暂无系统公告'
+
     await nextTick()
-    startScroll()
+    startMarquee()
   } catch (e) {
     console.warn('公告接口异常', e)
   }
 }
 
-// 🌟 滚动动画逻辑
-function startScroll() {
-  const box = document.querySelector('.notice-scroll')
-  if (!box) return
-  box.scrollTop = 0
+// 🌟 横向滚动动画
+function startMarquee() {
+  const content = scrollContent.value
+  if (!content) return
 
-  const totalHeight = box.scrollHeight
-  const step = 1
-  const delay = 30 // 每30ms移动1px
-  let current = 0
+
+  const contentWidth = content.scrollWidth / 2 // 一半的长度（因为重复了两份）
+  let offset = 0
+  const speed = 1 // 滚动速度：每次移动像素
+  const delay = 20 // 时间间隔(ms)
 
   function scroll() {
-    current += step
-    if (current >= totalHeight - box.clientHeight) {
-      current = 0 // 循环滚动
+    offset -= speed
+    if (Math.abs(offset) >= contentWidth) {
+      offset = 0
     }
-    box.scrollTop = current
+    content.style.transform = `translateX(${offset}px)`
   }
 
-  clearInterval(box._scrollTimer)
-  box._scrollTimer = setInterval(scroll, delay)
+  clearInterval(content._timer)
+  content._timer = setInterval(scroll, delay)
+
+  // 🖱️ 鼠标悬停暂停滚动
+  content.addEventListener('mouseenter', () => clearInterval(content._timer))
+  content.addEventListener('mouseleave', () => {
+    clearInterval(content._timer)
+    content._timer = setInterval(scroll, delay)
+  })
 }
 
 onMounted(loadNotices)
@@ -86,32 +85,37 @@ onMounted(loadNotices)
 <style scoped>
 .notice-bar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   background-color: #fffbe6;
   border: 1px solid #ffecb3;
   border-radius: 6px;
   padding: 6px 12px;
   font-size: 14px;
   color: #333;
-  gap: 8px;
-}
-
-.notice-scroll {
-  flex: 1;
-  height: 60px; /* 可自行调整公告区高度 */
   overflow: hidden;
+}
+
+.scroll-container {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
   position: relative;
-  line-height: 1.6;
-  padding-right: 10px;
+  margin-left: 8px;
 }
 
-.notice-item {
-  padding: 4px 0;
-  color: #333;
-  white-space: pre-line;
+.scroll-content {
+  display: inline-block;
+  white-space: nowrap;
+  animation: scroll linear infinite;
+  will-change: transform;
 }
 
-.notice-item:hover {
-  color: #e6a23c;
+.scroll-content span {
+  display: inline-block;
+  padding-right: 50px; /* 公告间隔距离 */
+}
+
+.scroll-content:hover {
+  animation-play-state: paused;
 }
 </style>
