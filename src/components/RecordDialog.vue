@@ -9,22 +9,31 @@
 >
 
     <div class="dialog-body">
-      <el-table :data="records" border stripe v-loading="loading">
-        <el-table-column prop="id" label="记录ID" width="90" />
-        <el-table-column prop="projectId" label="项目ID" width="100" />
-        <el-table-column prop="lineId" label="线路ID" width="100" />
-        <el-table-column prop="phoneNumber" label="手机号" min-width="140" />
-        <el-table-column prop="code" label="验证码" min-width="120" />
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag v-if="row.status === '成功'" type="success">成功</el-tag>
-            <el-tag v-else-if="row.status === '等待中'" type="warning">等待中</el-tag>
-            <el-tag v-else type="danger">失败</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column prop="updateTime" label="更新时间" width="180" />
-      </el-table>
+<el-table :data="records" border stripe v-loading="loading">
+  <el-table-column prop="id" label="记录ID" width="90" />
+  <el-table-column prop="projectId" label="项目ID" width="100" />
+  <el-table-column prop="lineId" label="线路ID" width="100" />
+  <el-table-column prop="phoneNumber" label="手机号" min-width="140" />
+  <el-table-column prop="code" label="验证码" min-width="120" />
+  
+  <el-table-column prop="ledgerType" label="账本类型" width="100">
+    <template #default="{ row }">
+      <el-tag v-if="row.ledgerType === 1" type="success">入账</el-tag>
+      <el-tag v-else type="danger">出账</el-tag>
+    </template>
+  </el-table-column>
+
+  <el-table-column prop="fundType" label="资金类型" width="100">
+    <template #default="{ row }">
+      <el-tag v-if="row.fundType === 0" type="warning">业务扣费</el-tag>
+      <el-tag v-else type="info">后台操作</el-tag>
+    </template>
+  </el-table-column>
+
+  <el-table-column prop="createTime" label="创建时间" width="180" />
+  <el-table-column prop="updateTime" label="更新时间" width="180" />
+</el-table>
+
 
       <div class="pagination">
         <el-pagination
