@@ -31,9 +31,7 @@
   {{ takingNumber ? '取消取号' : '取号' }}
 </el-button>
 <!-- 状态提示区 -->
-<div v-if="statusMessage" class="status-bar">
-  {{ statusMessage }}
-</div>
+
 
 
       <el-input-number v-model="takeCount" :min="1" :max="10" size="small" />
@@ -106,10 +104,14 @@
     </el-card>
 
     <!-- 取号记录表格 -->
+
     <el-card class="record-card" shadow="hover">
       <div class="table-header">
         <div class="title">号码获取记录</div>
         <div class="actions">
+        <div v-if="statusMessage" class="status-bar">
+  {{ statusMessage }}
+</div>
           <el-button @click="getRecordList" :loading="loading">刷新</el-button>
           <el-dropdown>
             <el-button>每页 {{ pageSize }}</el-button>
@@ -283,6 +285,20 @@ const handleTakeNumber = async () => {
     // ✅ 开始轮询验证码
     statusMessage.value = '⏳ 正在获取验证码...'
       // ✅ 开始轮询验证码
+      // ✅ 立即在表格中插入一条记录（用户即时可见）
+const newRecord = {
+  projectId: projectId.value,
+  lineId: selectedLine.value,
+  phoneNumber: phone,
+  code: '-', // 初始无验证码
+  status: '等待中',
+  time: 0,
+  progress: 0,
+  getNumberTime: new Date().toISOString(),
+}
+recordList.value.unshift(newRecord) // 插入到最上方
+total.value += 1
+
      fetchVerificationCode(phone)
     } else {
       ElMessage.error(res?.msg || '取号失败')
@@ -296,11 +312,22 @@ const handleTakeNumber = async () => {
 
 
 /**
- * 轮询获取验证码
-* @param {string} phoneNumber 手机号
- * @param {number} _maxSeconds 最大轮询时长（默认180秒 = 3分钟）
- * @param {number} _intervalMs 每次请求间隔（默认1000ms = 1秒）
+ * 更新表格中对应手机号的状态
+ * @param {string} phoneNumber 手机号
+ * @param {'成功'|'失败'} status 状态
+ * @param {string} [code] 验证码（可选）
+ * @param {number} [time] 耗时（秒）
  */
+function updateRecordStatus(phoneNumber, status, code = '-', time = 0) {
+  const target = recordList.value.find(r => r.phoneNumber === phoneNumber)
+  if (!target) return
+
+  target.status = status
+  target.progress = status === '成功' ? 100 : 100
+  target.code = code
+  target.time = time
+}
+
 /**
  * 轮询获取验证码
  * @param {string} phoneNumber 手机号
@@ -322,6 +349,7 @@ async function fetchVerificationCode(phoneNumber, maxSeconds = 180, intervalMs =
     }
 
     ElMessage.info(`开始获取验证码，手机号：${phoneNumber}`)
+    statusMessage.value = '⏳ 正在获取验证码...'
 
     const startTime = Date.now()
     let tryCount = 0
@@ -329,9 +357,10 @@ async function fetchVerificationCode(phoneNumber, maxSeconds = 180, intervalMs =
     // 持续轮询直到超时或取消
     while (!cancelFetch.value) {
       if (cancelFetch.value) {
-        console.log('🛑 用户取消任务')
         ElMessage.info('验证码获取已取消')
         takingNumber.value = false
+        statusMessage.value = '⚠️ 已取消任务'
+        updateRecordStatus(phoneNumber, '失败')
         return
       }
 
@@ -339,6 +368,8 @@ async function fetchVerificationCode(phoneNumber, maxSeconds = 180, intervalMs =
       if (elapsedSeconds >= maxSeconds) {
         ElMessage.warning('⚠️ 已超过3分钟仍未获取到验证码，任务结束')
         takingNumber.value = false
+        statusMessage.value = '⚠️ 获取超时，任务已结束'
+        updateRecordStatus(phoneNumber, '失败')
         return
       }
 
@@ -348,19 +379,22 @@ async function fetchVerificationCode(phoneNumber, maxSeconds = 180, intervalMs =
 
       if (res.code === 0 && res.data) {
         ElMessage.success(`✅ 验证码获取成功：${res.data}`)
-         lastCode.value = res.data
-  statusMessage.value = `✅ 验证码已获取：${res.data}`
-        await getRecordList()
+        lastCode.value = res.data
+        statusMessage.value = `✅ 验证码已获取：${res.data}`
+
+        updateRecordStatus(phoneNumber, '成功', res.data, Math.floor((Date.now() - startTime) / 1000))
         takingNumber.value = false
         return res.data
       }
 
-      // 每次请求间隔 1 秒
+      // 每次请求间隔
       await new Promise((r) => setTimeout(r, intervalMs))
     }
   } catch (err) {
     console.error('❌ 获取验证码异常:', err)
     ElMessage.error('请求异常，请检查网络或接口')
+    statusMessage.value = '❌ 请求异常，请检查网络'
+    updateRecordStatus(phoneNumber, '失败')
   } finally {
     takingNumber.value = false
   }
@@ -370,9 +404,10 @@ async function fetchVerificationCode(phoneNumber, maxSeconds = 180, intervalMs =
 function cancelTakeNumber() {
   cancelFetch.value = true
   takingNumber.value = false
-  ElMessage.warning('已取消取号任务')
   statusMessage.value = '⚠️ 已取消任务'
+  ElMessage.warning('已取消取号任务')
 }
+
 
 
 // 查询账户余额
@@ -600,5 +635,16 @@ html, body {
     }
   }
 }
+.status-bar {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #409eff;
+  background: #f0f9ff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: all 0.3s;
+  white-space: pre-line;
+}
+
 
 </style>
