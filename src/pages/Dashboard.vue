@@ -25,7 +25,6 @@
     <div class="section-content">
 <el-button
   :type="takingNumber ? 'danger' : 'primary'"
-  :loading="takingNumber && !cancelFetch"
   @click="handleTakeNumber"
 >
   {{ takingNumber ? '取消取号' : '取号' }}
@@ -34,7 +33,7 @@
 
 
 
-      <el-input-number v-model="takeCount" :min="1" :max="10" size="small" />
+      <!-- <el-input-number v-model="takeCount" :min="1" :max="10" size="small" /> -->
      
     </div>
   </div>
@@ -130,7 +129,7 @@
         </div>
       </div>
 
-      <el-table :data="recordList" border stripe v-loading="loading">
+      <el-table :data="recordList" border stripe >
         <el-table-column prop="projectId" label="项目ID" width="100" />
         <el-table-column prop="lineId" label="线路ID" width="100" />
 
@@ -194,7 +193,7 @@ import { watch } from 'vue'
 import RecordDialog from '@/components/RecordDialog.vue'
 import NoticeBar from '@/components/NoticeBar.vue'
 const currentPhoneNumber = ref('')
-const takeCount = ref(1)
+// const takeCount = ref(1)
 const filterEnabled = ref(false)
 const projectId = ref('')
 const selectedLine = ref('')
@@ -208,6 +207,8 @@ const cancelFetch = ref(false)
 const statusMessage = ref('')
 // 最新验证码
 const lastCode = ref('')
+// 当前取号尝试次数
+const takeAttemptCount = ref(0)
 
 
 const recordList = ref([])
@@ -319,46 +320,64 @@ const handleTakeNumber = async () => {
     return
   }
 
-  try {
-    takingNumber.value = true
-    cancelFetch.value = false
-    loading.value = true
- statusMessage.value = '📞 正在获取手机号中...'
-    const res = await getNumber(projectId.value, selectedLine.value, filterEnabled.value)
-    if (res?.code === 0 && res.data) {
-      const phone = res.data
-      currentPhoneNumber.value = phone
-      localStorage.setItem('phone', phone)
-      ElMessage.success(`✅ 取号成功，手机号：${phone}`)
- statusMessage.value = `✅ 已获取手机号：${phone}`
+  // 初始化状态
+  takeAttemptCount.value = 0
+  cancelFetch.value = false
+  takingNumber.value = true
+  loading.value = true
 
-    // ✅ 开始轮询验证码
-    statusMessage.value = '⏳ 正在获取验证码...'
-      // ✅ 开始轮询验证码
-      // ✅ 立即在表格中插入一条记录（用户即时可见）
-const newRecord = {
-  projectId: projectId.value,
-  lineId: selectedLine.value,
-  phoneNumber: phone,
-  code: '-', // 初始无验证码
-  status: '等待中',
-  time: 0,
-  progress: 0,
-  getNumberTime: new Date().toISOString(),
-}
-recordList.value.unshift(newRecord) // 插入到最上方
-total.value += 1
+  // 开始循环尝试取号，直到成功或被取消
+  while (!cancelFetch.value) {
+    takeAttemptCount.value++
+    statusMessage.value = `📞 第 ${takeAttemptCount.value} 次尝试获取手机号中...`
 
-     fetchVerificationCode(phone)
-    } else {
-      ElMessage.error(res?.msg || '取号失败')
-       statusMessage.value = '❌ 取号失败'
+    try {
+      const res = await getNumber(projectId.value, selectedLine.value, filterEnabled.value)
+      if (res?.code === 0 && res.data) {
+        const phone = res.data
+        currentPhoneNumber.value = phone
+        localStorage.setItem('phone', phone)
+        ElMessage.success(`✅ 第 ${takeAttemptCount.value} 次取号成功，手机号：${phone}`)
+        statusMessage.value = `✅ 第 ${takeAttemptCount.value} 次取号成功，手机号：${phone}`
+
+        // ✅ 插入表格记录
+        const newRecord = {
+          projectId: projectId.value,
+          lineId: selectedLine.value,
+          phoneNumber: phone,
+          code: '-',
+          status: '等待中',
+          time: 0,
+          progress: 0,
+          getNumberTime: new Date().toISOString(),
+          attemptCount: takeAttemptCount.value,
+        }
+        recordList.value.unshift(newRecord)
+        total.value += 1
+
+        // ✅ 成功取号后进入验证码轮询
+        await fetchVerificationCode(phone)
+        break // 成功后跳出循环
+      } else {
+        // ❌ 取号失败则等待后重试
+        statusMessage.value = `❌ 第 ${takeAttemptCount.value} 次取号失败，3秒后重试...`
+        console.warn(`第 ${takeAttemptCount.value} 次取号失败`, res)
+        await new Promise(r => setTimeout(r, 3000)) // 3秒重试间隔
+      }
+    } catch (err) {
+      console.error('取号异常：', err)
+      statusMessage.value = `⚠️ 第 ${takeAttemptCount.value} 次异常，3秒后重试...`
+      await new Promise(r => setTimeout(r, 3000))
     }
-  } finally {
-    takingNumber.value = false
-    loading.value = false
+  }
+
+  loading.value = false
+  takingNumber.value = false
+  if (cancelFetch.value) {
+    statusMessage.value = `⚠️ 已取消任务（共尝试 ${takeAttemptCount.value} 次）`
   }
 }
+
 
 
 /**
@@ -493,8 +512,8 @@ if (res.code === 0 && res.data) {
 function cancelTakeNumber() {
   cancelFetch.value = true
   takingNumber.value = false
-  statusMessage.value = '⚠️ 已取消任务'
-  ElMessage.warning('已取消取号任务')
+  statusMessage.value = `⚠️ 已取消任务（共尝试 ${takeAttemptCount.value} 次）`
+  ElMessage.warning(`已取消任务，共尝试 ${takeAttemptCount.value} 次`)
 }
 
 
