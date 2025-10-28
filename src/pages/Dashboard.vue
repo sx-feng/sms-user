@@ -180,7 +180,7 @@
 
 
     <!-- 页脚 -->
-    <div class="footer">© 2024 手机号与验证码获取平台 版权所有</div>
+    <div class="footer">© 2025 手机号与验证码获取平台 版权所有</div>
   </div>
 </template>
 

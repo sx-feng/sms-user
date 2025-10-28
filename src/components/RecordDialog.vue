@@ -22,8 +22,8 @@
             <el-tag v-else type="danger">失败</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="getNumberTime" label="取号时间" width="180" />
-        <el-table-column prop="codeReceivedTime" label="收到时间" width="180" />
+        <el-table-column prop="createTime" label="创建时间" width="180" />
+        <el-table-column prop="updateTime" label="更新时间" width="180" />
       </el-table>
 
       <div class="pagination">
@@ -47,7 +47,7 @@
 <script setup>
 import { ref, watch } from "vue"
 import { ElMessage } from "element-plus"
-import { listNumbers } from "@/api/api.js"
+import { viewAgentUserLedger } from "@/api/api.js"
 
 const props = defineProps({
   modelValue: { type: Boolean, required: true },
@@ -65,7 +65,7 @@ const currentPage = ref(1)
 const fetchRecords = async () => {
   loading.value = true
   try {
-    const res = await listNumbers(currentPage.value, pageSize.value)
+    const res = await viewAgentUserLedger(currentPage.value, pageSize.value)
     if (res.code === 0 && res.data) {
       const { records: items, total: t } = res.data
       records.value = items || []
