@@ -180,7 +180,7 @@
 
 
     <!-- 页脚 -->
-    <div class="footer">© 2024 手机号与验证码获取平台 版权所有</div>
+    <div class="footer">© 2025 手机号与验证码获取平台 版权所有</div>
   </div>
 </template>
 
@@ -215,7 +215,7 @@ const total = ref(0)
 const pageSize = ref(10)
 const currentPage = ref(1)
 const loading = ref(false)
-const page = ref(1)
+
 
 // 内部计时器：用于动态刷新“取码耗时”与进度条
 let progressTimer = null
@@ -271,7 +271,7 @@ const parseListResponse = (res) => {
 const getRecordList = async () => {
   loading.value = true
   try {
-    const res = await listNumbers(page.value, pageSize.value)
+    const res = await listNumbers(currentPage.value, pageSize.value)
     
     if (res.ok || res.code === 0) {
       const { items, total: t } = parseListResponse(res)
