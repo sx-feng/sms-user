@@ -159,7 +159,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/userstore'
@@ -190,6 +190,9 @@ const pageSize = ref(10)
 const currentPage = ref(1)
 const loading = ref(false)
 const page = ref(1)
+
+// 内部计时器：用于动态刷新“取码耗时”与进度条
+let progressTimer = null
 
 // 模拟获取线路列表
 const getLineList = async () => {
@@ -238,7 +241,20 @@ const getRecordList = async () => {
     
     if (res.ok || res.code === 0) {
       const { items, total: t } = parseListResponse(res)
-      recordList.value = items
+      // 统一将进度条按 180 秒封顶初始化；
+      // 已完成的行也不强制 100%，按实际耗时占比显示并冻结。
+      recordList.value = items.map(r => {
+        const hasTime = typeof r?.time === 'number'
+        const finishedByServer = !!r?.codeReceivedTime
+        const capped = hasTime ? Math.min(r.time, 180) : r.time
+        if (hasTime) {
+          const pct = finishedByServer
+            ? Math.min((capped / 180) * 100, 100)
+            : Math.min((capped / 180) * 100, 99)
+          return { ...r, time: capped, progress: pct, finished: finishedByServer }
+        }
+        return { ...r, finished: finishedByServer }
+      })
       total.value = t
     } else {
       recordList.value = []
@@ -314,18 +330,33 @@ total.value += 1
 /**
  * 更新表格中对应手机号的状态
  * @param {string} phoneNumber 手机号
- * @param {'成功'|'失败'} status 状态
+ * @param {'成功'|'失败'|'等待中'} status 状态
  * @param {string} [code] 验证码（可选）
  * @param {number} [time] 耗时（秒）
  */
-function updateRecordStatus(phoneNumber, status, code = '-', time = 0) {
+function updateRecordStatus(phoneNumber, status, code = '-', time = null) {
   const target = recordList.value.find(r => r.phoneNumber === phoneNumber)
   if (!target) return
 
+  let finalTime = time
+  if (!finalTime || finalTime <= 0) {
+    const startTs = target?.getNumberTime ? new Date(target.getNumberTime).getTime() : null
+    if (startTs && !Number.isNaN(startTs)) {
+      finalTime = Math.max(0, Math.floor((Date.now() - startTs) / 1000))
+    } else {
+      finalTime = 0
+    }
+  }
+
   target.status = status
-  target.progress = status === '成功' ? 100 : 100
   target.code = code
-  target.time = time
+  target.time = finalTime
+  target.progress = Math.min((finalTime / 180) * 100, 100)
+  target.finished = status !== '等待中'
+
+  if (status === '成功') {
+    target.codeReceivedTime = new Date().toISOString()
+  }
 }
 
 /**
@@ -354,7 +385,6 @@ async function fetchVerificationCode(phoneNumber, maxSeconds = 180, intervalMs =
     const startTime = Date.now()
     let tryCount = 0
 
-    // 持续轮询直到超时或取消
     while (!cancelFetch.value) {
       if (cancelFetch.value) {
         ElMessage.info('验证码获取已取消')
@@ -377,18 +407,32 @@ async function fetchVerificationCode(phoneNumber, maxSeconds = 180, intervalMs =
       console.log(`🔁 第 ${tryCount} 次请求验证码...`)
       const res = await getCode(phoneNumber)
 
+      // ✅ 成功获取验证码
       if (res.code === 0 && res.data) {
         ElMessage.success(`✅ 验证码获取成功：${res.data}`)
         lastCode.value = res.data
         statusMessage.value = `✅ 验证码已获取：${res.data}`
 
-        updateRecordStatus(phoneNumber, '成功', res.data, Math.floor((Date.now() - startTime) / 1000))
+        // ✅ 更新为成功状态
+        updateRecordStatus(
+          phoneNumber,
+          '成功',
+          res.data,
+          Math.floor((Date.now() - startTime) / 1000)
+        )
+
         takingNumber.value = false
+
+        // ✅ 3秒后自动清空状态提示
+        setTimeout(() => {
+          statusMessage.value = ''
+        }, 3000)
+
         return res.data
       }
 
       // 每次请求间隔
-      await new Promise((r) => setTimeout(r, intervalMs))
+      await new Promise(r => setTimeout(r, intervalMs))
     }
   } catch (err) {
     console.error('❌ 获取验证码异常:', err)
@@ -399,6 +443,7 @@ async function fetchVerificationCode(phoneNumber, maxSeconds = 180, intervalMs =
     takingNumber.value = false
   }
 }
+
 
 // ✅ 通用取消函数（可编程调用）
 function cancelTakeNumber() {
@@ -480,6 +525,32 @@ watch(projectId, async (newVal) => {
 onMounted(() => {
   getLineList()
   getRecordList()
+  // 每秒刷新一次未完成记录的进度与耗时（基于实时时间）
+  if (!progressTimer) {
+    progressTimer = setInterval(() => {
+      const now = Date.now()
+      // 仅更新进行中的记录（进度未满）
+      recordList.value.forEach((r) => {
+        if (typeof r?.progress === 'number' && r.progress >= 100) return
+        const startTs = r?.getNumberTime ? new Date(r.getNumberTime).getTime() : null
+        if (!startTs || Number.isNaN(startTs)) return
+
+        const diffSec = Math.max(0, Math.floor((now - startTs) / 1000))
+        const capped = Math.min(diffSec, 180)
+        // 规则：300秒封顶，未完成时最多显示到99%
+        const pct = Math.min((capped / 180) * 100, 99)
+        r.time = capped
+        r.progress = pct
+      })
+    }, 1000)
+  }
+})
+
+onUnmounted(() => {
+  if (progressTimer) {
+    clearInterval(progressTimer)
+    progressTimer = null
+  }
 })
 </script>
 
