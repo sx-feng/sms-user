@@ -26,14 +26,13 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
-  const token = userStore.token || localStorage.getItem('token')
-  const loggedIn = !!(token || userStore.userInfo)
+  const loggedIn = !!userStore.isAuthenticated
 
-  if (to.meta.title) {
-    document.title = `${to.meta.title} - wzz用户端`
+  if (to.meta && to.meta.title) {
+    document.title = `${to.meta.title} -用户端`
   }
 
-  if (to.meta.requiresAuth && !loggedIn) {
+  if (to.meta && to.meta.requiresAuth && !loggedIn) {
     next({ name: 'login' })
   } else if (to.name === 'login' && loggedIn) {
     next({ name: 'dashboard' })
@@ -43,3 +42,4 @@ router.beforeEach((to, from, next) => {
 })
 
 export default router
+
