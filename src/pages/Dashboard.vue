@@ -26,6 +26,7 @@
 >
   {{ takingNumber ? '取消取号' : '取号' }}
 </el-button>
+ <el-input-number v-model="takeCount" :min="1" :max="10" size="small" />
 
     </div>
   </div>
@@ -184,8 +185,8 @@ import { getBalance, getNumber ,listNumbers ,listProjectLines,getCode} from '@/a
 import { watch } from 'vue'
 import RecordDialog from '@/components/RecordDialog.vue'
 import NoticeBar from '@/components/NoticeBar.vue'
-const currentPhoneNumber = ref('')
-// const takeCount = ref(1)
+// const currentPhoneNumber = ref('')
+ const takeCount = ref(1)
 const filterEnabled = ref(false)
 const projectId = ref('')
 const selectedLine = ref('')
@@ -294,8 +295,9 @@ const getRecordList = async () => {
 
 // 取号
 const userStore = useUserStore()
+// ✅ 批量取号 + 并行验证码轮询
 const handleTakeNumber = async () => {
-  // ✅ 如果正在取号，点击则取消
+  // 🔹 正在取号则取消
   if (takingNumber.value) {
     cancelTakeNumber()
     return
@@ -317,24 +319,25 @@ const handleTakeNumber = async () => {
   cancelFetch.value = false
   takingNumber.value = true
   loading.value = true
+  statusMessage.value = `📞 开始批量取号，共需 ${takeCount.value} 个号码...`
 
-  // 开始循环尝试取号，直到成功或被取消
-  while (!cancelFetch.value) {
+  let successCount = 0
+  const maxCount = takeCount.value
+
+  // 🔹 用 Promise.allSettled 管理并行验证码任务
+  const allTasks = []
+
+  for (let i = 0; i < maxCount && !cancelFetch.value; i++) {
     takeAttemptCount.value++
-    statusMessage.value = `📞 第 ${takeAttemptCount.value} 次尝试获取手机号中...`
+    statusMessage.value = `📞 正在第 ${takeAttemptCount.value} 次获取手机号...`
 
     try {
       const res = await getNumber(projectId.value, selectedLine.value, filterEnabled.value)
       if (res?.code === 0 && res.data) {
         const phone = res.data
-        currentPhoneNumber.value = phone
-        localStorage.setItem('phone', phone)
-        ElMessage.success(`✅ 第 ${takeAttemptCount.value} 次取号成功，手机号：${phone}`)
-        statusMessage.value = `✅ 第 ${takeAttemptCount.value} 次取号成功，手机号：${phone}`
-        // ✅ 验证码流程结束后恢复取号按钮
-  takingNumber.value = false
-  cancelFetch.value = false
-        // ✅ 插入表格记录
+        successCount++
+
+        // ✅ 插入表格
         const newRecord = {
           projectId: projectId.value,
           lineId: selectedLine.value,
@@ -344,33 +347,43 @@ const handleTakeNumber = async () => {
           time: 0,
           progress: 0,
           getNumberTime: new Date().toISOString(),
-          attemptCount: takeAttemptCount.value,
         }
         recordList.value.unshift(newRecord)
-        total.value += 1
+        total.value++
 
-        // ✅ 成功取号后进入验证码轮询
-        await fetchVerificationCode(phone)
-        break // 成功后跳出循环
+        ElMessage.success(`✅ 第 ${takeAttemptCount.value} 次取号成功：${phone}`)
+        statusMessage.value = `✅ 成功获取第 ${successCount}/${maxCount} 个号码：${phone}`
+
+        // 🔹 每个号码独立开始验证码轮询（并行执行）
+        const task = fetchVerificationCode(phone)
+        allTasks.push(task)
+
+        // 延迟一点，防止接口被限流
+        await new Promise(r => setTimeout(r, 1000))
       } else {
-        // ❌ 取号失败则等待后重试
-        statusMessage.value = `❌ 第 ${takeAttemptCount.value} 次取号失败，3秒后重试...`
-        console.warn(`第 ${takeAttemptCount.value} 次取号失败`, res)
-        await new Promise(r => setTimeout(r, 3000)) // 3秒重试间隔
+        ElMessage.warning(`❌ 第 ${takeAttemptCount.value} 次取号失败，3秒后重试...`)
+        await new Promise(r => setTimeout(r, 3000))
+        i-- // 失败不计次数
       }
     } catch (err) {
       console.error('取号异常：', err)
       statusMessage.value = `⚠️ 第 ${takeAttemptCount.value} 次异常，3秒后重试...`
       await new Promise(r => setTimeout(r, 3000))
+      i-- // 失败不计次数
     }
   }
 
+  // 🔹 等待所有验证码轮询任务完成
+  statusMessage.value = `⏳ 共取到 ${successCount} 个号码，开始等待验证码中...`
+  await Promise.allSettled(allTasks)
+
+  // ✅ 所有任务结束
   loading.value = false
   takingNumber.value = false
-  if (cancelFetch.value) {
-    statusMessage.value = `⚠️ 已取消任务（共尝试 ${takeAttemptCount.value} 次）`
-  }
+  cancelFetch.value = false
+  statusMessage.value = `✅ 批量任务完成，共成功取号 ${successCount}/${maxCount}`
 }
+
 
 
 
