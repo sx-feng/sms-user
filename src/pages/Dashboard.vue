@@ -128,12 +128,17 @@
 
         <el-table-column prop="phoneNumber" label="手机号" min-width="150" />
         <el-table-column prop="code" label="验证码" min-width="120" />
-        <el-table-column label="取码耗时" width="120">
-          <template #default="{ row }">
-            <el-progress :percentage="row.progress" :stroke-width="8" :show-text="false" />
-            <span class="time-text">{{ row.time }} 秒</span>
-          </template>
-        </el-table-column>
+   <el-table-column label="取码耗时" width="140">
+  <template #default="{ row }">
+    <el-progress
+      :percentage="row.progress"
+      :stroke-width="8"
+      :show-text="false"
+    />
+    <span class="time-text">{{ row.time }} 秒</span>
+  </template>
+</el-table-column>
+
 <el-table-column label="状态" width="100">
   <template #default="{ row }">
     <el-tag
@@ -261,7 +266,7 @@ const parseListResponse = (res) => {
 
 
 
-// 模拟获取取号记录
+
 const getRecordList = async () => {
   loading.value = true
   try {
@@ -295,14 +300,12 @@ const getRecordList = async () => {
 
 // 取号
 const userStore = useUserStore()
-// ✅ 批量取号 + 并行验证码轮询
 const handleTakeNumber = async () => {
   // 🔹 正在取号则取消
   if (takingNumber.value) {
     cancelTakeNumber()
     return
   }
-
   const u = localStorage.getItem('u')
   const p = localStorage.getItem('p')
   if (!u || !p) {
@@ -313,7 +316,6 @@ const handleTakeNumber = async () => {
     ElMessage.warning('请先选择项目和线路')
     return
   }
-
   // 初始化状态
   takeAttemptCount.value = 0
   cancelFetch.value = false
@@ -353,11 +355,9 @@ const handleTakeNumber = async () => {
 
         ElMessage.success(`✅ 第 ${takeAttemptCount.value} 次取号成功：${phone}`)
         statusMessage.value = `✅ 成功获取第 ${successCount}/${maxCount} 个号码：${phone}`
-
         // 🔹 每个号码独立开始验证码轮询（并行执行）
         const task = fetchVerificationCode(phone)
         allTasks.push(task)
-
         // 延迟一点，防止接口被限流
         await new Promise(r => setTimeout(r, 1000))
       } else {
@@ -372,20 +372,15 @@ const handleTakeNumber = async () => {
       i-- // 失败不计次数
     }
   }
-
   // 🔹 等待所有验证码轮询任务完成
   statusMessage.value = `⏳ 共取到 ${successCount} 个号码，开始等待验证码中...`
   await Promise.allSettled(allTasks)
-
   // ✅ 所有任务结束
   loading.value = false
   takingNumber.value = false
   cancelFetch.value = false
   statusMessage.value = `✅ 批量任务完成，共成功取号 ${successCount}/${maxCount}`
 }
-
-
-
 
 /**
  * 更新表格中对应手机号的状态
@@ -426,7 +421,6 @@ function updateRecordStatus(phoneNumber, status, code = '-', time = null) {
     target.codeReceivedTime = new Date().toISOString()
   }
 }
-
 /**
  * 轮询获取验证码
  * @param {string} phoneNumber 手机号
@@ -449,11 +443,15 @@ async function fetchVerificationCode(phoneNumber, maxSeconds = 180, intervalMs =
 
     ElMessage.info(`开始获取验证码，手机号：${phoneNumber}`)
     statusMessage.value = '⏳ 正在获取验证码...'
-
+ takingNumber.value = false
+        statusMessage.value = '⚠️ 获取超时，任务已结束'
     const startTime = Date.now()
     let tryCount = 0
 
     while (!cancelFetch.value) {
+      
+       
+      
       if (cancelFetch.value) {
         ElMessage.info('验证码获取已取消')
         takingNumber.value = false
@@ -465,13 +463,19 @@ async function fetchVerificationCode(phoneNumber, maxSeconds = 180, intervalMs =
       const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000)
       if (elapsedSeconds >= maxSeconds) {
         ElMessage.warning('⚠️ 已超过3分钟仍未获取到验证码，任务结束')
-        takingNumber.value = false
-        statusMessage.value = '⚠️ 获取超时，任务已结束'
+       
         updateRecordStatus(phoneNumber, '失败')
         return
       }
 
       tryCount++
+      // ✅ 计算当前轮询已耗时
+      const elapsed = tryCount * (intervalMs / 1000)
+      const progress = Math.min((elapsed / maxSeconds) * 100, 99)
+      console.log(elapsed,progress,"jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj")
+        updateRecordStatus(phoneNumber, '等待中', '-', Math.floor(elapsed))
+      const target = recordList.value.find(r => r.phoneNumber === phoneNumber)
+      if (target) target.progress = progress
       console.log(`🔁 第 ${tryCount} 次请求验证码...`)
       const res = await getCode(phoneNumber)
 
@@ -499,8 +503,6 @@ if (res.code === 0 && res.data) {
 
   return res.data
 }
-
-
       // 每次请求间隔
       await new Promise(r => setTimeout(r, intervalMs))
     }
@@ -514,7 +516,6 @@ if (res.code === 0 && res.data) {
   }
 }
 
-
 // ✅ 通用取消函数（可编程调用）
 function cancelTakeNumber() {
   cancelFetch.value = true
@@ -522,8 +523,6 @@ function cancelTakeNumber() {
   statusMessage.value = `⚠️ 已取消任务（共尝试 ${takeAttemptCount.value} 次）`
   ElMessage.warning(`已取消任务，共尝试 ${takeAttemptCount.value} 次`)
 }
-
-
 
 // 查询账户余额
 const handleCheckUser = async () => {
@@ -535,7 +534,6 @@ const handleCheckUser = async () => {
     ElMessage.error('未登录，无法查询余额')
     return
   }
-
   // 请求余额
   const res = await getBalance(u, p)
   if (res.code === 0) {
@@ -549,19 +547,15 @@ const handleCheckUser = async () => {
     ElMessage.error(res.msg || '查询失败')
   }
 }
-
-
 // 流水记录弹窗
 const handleCheckFlow = () => {
   recordDialogVisible.value = true
 }
-
 // 分页切换
 const handlePageChange = (page) => {
   currentPage.value = page
   getRecordList()
 }
-
 // 退出登录
 const router = useRouter()
 function handleLogout() {
@@ -596,24 +590,7 @@ onMounted(() => {
   getLineList()
   getRecordList()
   // 每秒刷新一次未完成记录的进度与耗时（基于实时时间）
-  if (!progressTimer) {
-    progressTimer = setInterval(() => {
-      const now = Date.now()
-      // 仅更新进行中的记录（进度未满）
-      recordList.value.forEach((r) => {
-        if (typeof r?.progress === 'number' && r.progress >= 100) return
-        const startTs = r?.getNumberTime ? new Date(r.getNumberTime).getTime() : null
-        if (!startTs || Number.isNaN(startTs)) return
-
-        const diffSec = Math.max(0, Math.floor((now - startTs) / 1000))
-        const capped = Math.min(diffSec, 180)
-        // 规则：300秒封顶，未完成时最多显示到99%
-        const pct = Math.min((capped / 180) * 100, 99)
-        r.time = capped
-        r.progress = pct
-      })
-    }, 1000)
-  }
+  
 })
 
 
