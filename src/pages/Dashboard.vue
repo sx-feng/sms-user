@@ -331,7 +331,9 @@ const handleTakeNumber = async () => {
         localStorage.setItem('phone', phone)
         ElMessage.success(`✅ 第 ${takeAttemptCount.value} 次取号成功，手机号：${phone}`)
         statusMessage.value = `✅ 第 ${takeAttemptCount.value} 次取号成功，手机号：${phone}`
-
+        // ✅ 验证码流程结束后恢复取号按钮
+  takingNumber.value = false
+  cancelFetch.value = false
         // ✅ 插入表格记录
         const newRecord = {
           projectId: projectId.value,
