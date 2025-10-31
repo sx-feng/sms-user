@@ -1,8 +1,8 @@
 ﻿<template>
   <div class="login-page">
     <div class="login-card">
-      <img src="@/assets/logo.png" alt="logo" class="logo" />
-      <h2 class="title">手机号验证码平台登录</h2>
+      <img src="@/assets/logo.jpg" alt="logo" class="logo" />
+      <h2 class="title">汇科登录</h2>
 
       <el-form :model="form" :rules="rules" ref="loginForm" label-position="top">
         <el-form-item label="用户ID" prop="userName">
@@ -31,7 +31,7 @@
       </el-form>
 
       <div class="footer">
-        <span>© 2024 手机号与验证码获取平台. 保留所有权利.</span>
+        <span>© 2025 汇科 版权所有</span>
       </div>
     </div>
   </div>

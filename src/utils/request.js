@@ -56,16 +56,20 @@ export async function request(methodFlag, url, jsonData = {}, isquery = false) {
       return { ok: false, code: 0, message: '返回数据不是 JSON 格式', data: text };
     }
 
-    // 统一返回
+    const normalizedCode = data.code ?? data.status ?? 0;
+    const normalizedMessage = data.message ?? data.msg ?? '';
+    const normalizedData = Object.prototype.hasOwnProperty.call(data, 'data') ? data.data : null;
+    const normalizedOk = data.ok === true || normalizedCode === 0 || normalizedCode === 200;
+
     return {
-      ok: data.code === 200 || data.ok === true,
-      code: data.code || 0,
-      message: data.message || '',
-      data: data.data || null,
+      ok: normalizedOk,
+      code: normalizedCode,
+      message: normalizedMessage,
+      data: normalizedData,
+      raw: data,
     };
   } catch (err) {
     console.error('🌐 网络或解析异常:', err);
     return { ok: false, code: -1, message: '网络异常或服务器错误', data: null };
   }
 }
-
