@@ -15,7 +15,13 @@
   <el-table-column prop="lineId" label="线路ID" width="100" />
   <el-table-column prop="phoneNumber" label="手机号" min-width="140" />
   <el-table-column prop="code" label="验证码" min-width="120" />
-  
+    <el-table-column prop="price" label="价格 (¥)" width="120" align="center">
+  <template #default="{ row }">
+    <span :style="{ color: row.price < 0 ? '#f56c6c' : '#67c23a' }">
+      {{ row.price?.toFixed?.(2) ?? '0.00' }}
+    </span>
+  </template>
+</el-table-column>
   <el-table-column prop="ledgerType" label="账本类型" width="100">
     <template #default="{ row }">
       <el-tag v-if="row.ledgerType === 1" type="success">入账</el-tag>
@@ -82,6 +88,9 @@ const fetchRecords = async () => {
     } else {
       records.value = []
       total.value = 0
+      if (res?.message) {
+        ElMessage.warning(res.message)
+      }
     }
   } catch (err) {
     console.error("加载流水记录失败：", err)

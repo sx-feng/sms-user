@@ -6,6 +6,9 @@
   </div>
 
   <div class="right">
+      <el-button type="warning" size="small" plain @click="showPwdDialog = true">
+    修改密码
+  </el-button>
     <el-button type="danger" size="small" @click="handleLogout">
       退出登录
     </el-button>
@@ -242,7 +245,10 @@
 
     <RecordDialog v-model="recordDialogVisible" />
 
-
+<UserChangePasswordDialog
+  v-model="showPwdDialog"
+  @success="handleLogout"
+/>
     <!-- 页脚 -->
     <div class="footer">© 2025 汇科 版权所有</div>
   </div>
@@ -257,6 +263,7 @@ import { getBalance, getNumber ,listNumbers ,listProjectLines,getCode} from '@/a
 import { SCREENING_APPS, SCREENING_STATE_OPTIONS, retryCheckPhoneNumberState } from '@/utils/phoneScreening'
 import RecordDialog from '@/components/RecordDialog.vue'
 import NoticeBar from '@/components/NoticeBar.vue'
+import UserChangePasswordDialog from '@/components/UserChangePasswordDialog.vue'
 // const currentPhoneNumber = ref('')
  const takeCount = ref(1)
 const filterEnabled = ref(false)
@@ -270,6 +277,7 @@ const projectId = ref('')
 const selectedLine = ref('')
 const lineList = ref([])
 const recordDialogVisible = ref(false)
+const showPwdDialog = ref(false)
 // 当前是否正在取号中
 const takingNumber = ref(false)
 // 是否取消轮询
@@ -652,7 +660,11 @@ const handleTakeNumber = async () => {
         await delay(100)
         if (!isTakeSessionActive(sessionId) || cancelFetch.value) break takeLoop
       } else {
-        pushStatus(`取号状态: 暂无号码，第 ${takeAttemptCount.value} 次获取失败，重试中`, 'warning')
+        const failText = res?.message || '暂无号码，请稍后重试'
+        const suffix = `第 ${takeAttemptCount.value} 次获取失败，重试中`
+        pushStatus(`取号状态: ${failText}，${suffix}`, 'warning', {
+          toast: Boolean(res?.message && takeAttemptCount.value === 1),
+        })
         await delay(100)
         if (!isTakeSessionActive(sessionId) || cancelFetch.value) break takeLoop
         i-- // 失败不计次数
@@ -886,6 +898,9 @@ async function fetchVerificationCode(
 
         recordList.value = [...recordList.value]
         return { status: 'success', code: res.data }
+      } else if (res?.message && (tryCount === 1 || res.code !== -2)) {
+        const level = res.code === -2 ? 'info' : 'warning'
+        pushStatus(`验证码状态: ${res.message}`, level)
       }
 
       await delay(intervalMs)
@@ -1007,7 +1022,7 @@ const handleCheckUser = async () => {
     
   } else {
     // 查询失败，显示错误信息
-    ElMessage.error(res.msg || '查询失败')
+    ElMessage.error(res.message || '查询失败')
   }
 }
 // 流水记录弹窗
@@ -1130,7 +1145,11 @@ html, body {
   font-weight: 600;
 
 }
-
+.right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .top-card {
   .top-bar {
     display: flex;

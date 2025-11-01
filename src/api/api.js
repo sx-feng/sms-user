@@ -52,3 +52,5 @@ export const viewAgentUserLedger = ( page = 1, size = 10) =>
 export const getAgentDashboard = () =>
   auth(0, '/api/agent/dashboard-stats', {}, true)
 
+export const updateUserPassword = (data) =>
+    auth(1, '/api/user/update/passward', data)

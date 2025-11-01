@@ -65,36 +65,28 @@ const handleLogin = () => {
     loading.value = true
 
     try {
-      const res = await getUserInfo(
-        form.value.userName,
-        form.value.password
-      )
+      const userName = form.value.userName
+      const password = form.value.password
+      const res = await getUserInfo(userName, password)
+      const success = res.code === 0 || res.data?.status === 0
 
-      if (res.data.status === 0) {
-        ElMessage.success('登录成功')
-
-        // 使用前端输入的用户名，而不是后端返回的
-        const userName = form.value.userName
-        const password = form.value.password
-
-        // 将 token 存储到 localStorage，避免存储明文密码
-        const token = res.data.token  // 假设后端返回了一个 token
-        localStorage.setItem('token', token)
-
-        // 存储用户名并保存到 store（避免存储密码）
-        userStore.setUserInfo(res.data, userName)
-        localStorage.setItem('u', userName)
-         localStorage.setItem('p', password)
-        console.log('pass',password)
-        console.log('Username:', userName)
-        console.log('Token:', token)
-
-        // 跳转到仪表盘
-        router.push('/dashboard')
-
-      } else {
+      if (!success) {
         ElMessage.error(res.message || '登录失败')
+        return
       }
+
+      const payload = res.data || {}
+      const token = payload.token || res.raw?.token || ''
+      if (token) {
+        localStorage.setItem('token', token)
+      }
+
+      userStore.setUserInfo(payload, userName)
+      localStorage.setItem('u', userName)
+      localStorage.setItem('p', password)
+
+      ElMessage.success('登录成功')
+      router.push('/dashboard')
     } catch (e) {
       ElMessage.error('请求异常，请检查网络')
     } finally {
