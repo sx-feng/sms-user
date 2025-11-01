@@ -6,6 +6,15 @@
   </div>
 
   <div class="right">
+    <el-button
+      v-if="isAgentUser"
+      type="primary"
+      size="small"
+      plain
+      @click="handleAgentEntry"
+    >
+      代理端入口
+    </el-button>
       <el-button type="warning" size="small" plain @click="showPwdDialog = true">
     修改密码
   </el-button>
@@ -255,7 +264,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/userstore'
@@ -496,6 +505,26 @@ const getRecordList = async () => {
 
 // 取号
 const userStore = useUserStore()
+
+const isAgentFlag = (val) => val === true || val === 'true' || val === 1 || val === '1'
+
+const isAgentUser = computed(() => {
+  const info = userStore.userInfo
+  if (!info) return false
+  if (isAgentFlag(info.isAgent)) return true
+  const nested = info.info || info.userInfo
+  if (nested && typeof nested === 'object') {
+    return isAgentFlag(nested.isAgent)
+  }
+  return false
+})
+
+const handleAgentEntry = () => {
+  if (typeof window !== 'undefined') {
+    window.location.href = 'https://acting.huikecode.com/'
+  }
+}
+
 const handleTakeNumber = async () => {
   // 🔹 正在取号则取消
   if (takingNumber.value) {
