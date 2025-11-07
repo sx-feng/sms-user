@@ -16,8 +16,8 @@ export const getNumber = (projectId, lineId,filterEnabled) =>
   auth(0, '/api/user/getNumber', { projectId, lineId ,filterEnabled}, true)
 
 // 获取验证码（取码）
-export const getCode = (phoneNumber) => {
-  return auth(0, '/api/user/getCode', { phoneNumber }, true);
+export const getCode = (phoneNumber, projectId, lineId) => {
+  return auth(0, '/api/user/getCode', { phoneNumber, projectId, lineId }, true)
 }
 
 // 查询号码记录（分页）

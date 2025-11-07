@@ -889,11 +889,13 @@ async function fetchVerificationCode(
 
     const startTime = Date.now()
     let tryCount = 0
-    const target = recordList.value.find(r => r.phoneNumber === phoneNumber)
-    if (target) {
-      target.localStartTime = startTime
-      target.isLocal = true
+    const linkedRecord = recordList.value.find(r => r.phoneNumber === phoneNumber)
+    if (linkedRecord) {
+      linkedRecord.localStartTime = startTime
+      linkedRecord.isLocal = true
     }
+    const codeProjectId = linkedRecord?.projectId ?? activeProjectId.value ?? projectId.value
+    const codeLineId = linkedRecord?.lineId ?? activeLineId.value ?? resolveLineId(selectedLine.value)
 /* eslint-disable */ 
     while (true) {
       if (isCancelled()) {
@@ -919,7 +921,7 @@ async function fetchVerificationCode(
         target.progress = progress
       }
 
-      const res = await getCode(phoneNumber)
+      const res = await getCode(phoneNumber, codeProjectId, codeLineId)
       if (res?.code === 0 && res.data) {
         pushStatus(`验证码状态: 获取成功，验证码 ${res.data}`, 'success')
         lastCode.value = res.data
