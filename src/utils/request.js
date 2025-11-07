@@ -1,6 +1,8 @@
 // request.js
 // const baseURL = 'http://103.236.74.15:8088/';
 const baseURL = 'http://192.168.110.102:8026';
+// const baseURL = 'https://api.daguicode.com';
+// const baseURL = 'https://api.huikecode.com';
 
 const ERROR_MESSAGES = Object.freeze({
   [-1]: '暂无可用号码，请稍后再试',

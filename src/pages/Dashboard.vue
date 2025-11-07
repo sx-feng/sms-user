@@ -387,11 +387,17 @@ const resolveLineId = (line) => {
 }
 
 const resolveLineLabel = (line) => {
-  if (line && typeof line === 'object') {
-    return line.name ?? line.label ?? `线路 ${resolveLineId(line)}`
+  // 优先处理新的数据结构 { lineId, lineName }
+  if (line && typeof line === 'object' && line.lineId && line.lineName) {
+    return `${line.lineId} - ${line.lineName}`; // 拼接成 "线路ID - 线路名称"
   }
-  const id = resolveLineId(line)
-  return id ? `线路 ${id}` : '未知线路'
+
+  // --- 保留旧的逻辑作为降级兼容 ---
+  if (line && typeof line === 'object') {
+    const id = line.id ?? line.lineId ?? line.value ?? '';
+    return `线路 ${id}`;
+  }
+  return line ? `线路 ${line}` : '未知线路';
 }
 
 const pickFirstLineId = (lines = []) => {
